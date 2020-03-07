@@ -53,12 +53,11 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
      * Wait for a connection and authentication with the client.
      * @return true if credentials were correct and session was established
      */
-    private boolean waitForAuth(SSLSocket sock, boolean available) {
+    private boolean waitForAuth(SSLSocket sock) {
         // accept a connection
         BufferedReader MyIn;
         PrintWriter MyOut;
         try {
-
             MyOut = new PrintWriter(
                     new BufferedWriter(
                             new OutputStreamWriter(
@@ -80,12 +79,14 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             System.out.println("The text of the request is: \""+inputLine+"\"");
 
             if(inputLine.equals(comparison)) {
+                boolean available = checkAndSetAdmin();
                 if(!available) {
                     if(!sendMessage("Auth denied errcode 2", MyOut)) {
                         System.err.println("Error occurred during authentication");
                     }
                     MyIn.close();
                     MyOut.close();
+                    System.out.println("Authentication denied: Server was busy with another admin");
                     return false;
                 }
                 else if(!sendMessage("Auth successful", MyOut)) {
@@ -251,6 +252,11 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
         String inputLine = "";
         try {
             inputLine = in.readLine();
+            if(inputLine == null) {
+                System.out.println("Client closed its socket. Closing the connection");
+                releaseAdmin();
+                return false;
+            }
             System.out.println("Request received:");
             System.out.println("Request text: \""+inputLine+"\"");
         } catch (IOException e) {
@@ -317,15 +323,15 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
         try {
             System.out.println("New listener ready for connections...");
             sock = (SSLSocket) server.accept();
-            boolean available = checkAndSetAdmin();
 
             newListener(); //place another thread listening to new connections
 
-            waitForAuth(sock, available);
-            if(!available) { //if another admin is logged
+            if(!waitForAuth(sock)) {
                 sock.close();
                 return;
             }
+
+            //Since this point the admin is logged in
 
             do {}
             while(handleRequest()); //handle client requests until a checkout
