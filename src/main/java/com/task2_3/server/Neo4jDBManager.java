@@ -28,12 +28,6 @@ public class Neo4jDBManager implements AutoCloseable {
     }
 
 
-    public void addNode (String nodeName) {
-        try (Session session = driver.session()) {
-            StatementResult cursor = session.run(query.withParameters(
-                    Values.parameters( "searchText", "@html.it" ) ));
-        }
-    }
 
     public void matchNode (String nodeName) {
         try (Session session = driver.session()) {
