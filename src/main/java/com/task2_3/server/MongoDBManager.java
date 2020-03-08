@@ -1,6 +1,7 @@
 package com.task2_3.server;
 
 import com.mongodb.client.*;
+import org.bson.Document;
 
 public class MongoDBManager implements DBManager{
     private MongoClient mongoClient;
@@ -10,5 +11,25 @@ public class MongoDBManager implements DBManager{
     }
     public void close(){
 
+    }
+
+    public void insertDocument(Document doc){
+
+        MongoDatabase database = mongoClient.getDatabase("mydb");
+        MongoCollection<Document> collection = database.getCollection("test");
+        collection.insertOne(doc);
+    }
+
+    public void getDocument() {
+        MongoDatabase database = mongoClient.getDatabase("mydb");
+        MongoCollection<Document> collection = database.getCollection("test");
+        MongoCursor<Document> cursor = collection.find().iterator();
+        try {
+            while (cursor.hasNext()) {
+                //TODO
+            }
+        } finally {
+            cursor.close();
+        }
     }
 }
