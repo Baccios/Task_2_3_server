@@ -1,10 +1,8 @@
 package com.task2_3.server;
 
-import org.neo4j.driver.*;
 import org.neo4j.driver.v1.*;
 import static org.neo4j.driver.v1.Values.parameters;
 
-import java.util.ArrayList;
 
 
 public class Neo4jDBManager implements AutoCloseable {
@@ -16,12 +14,6 @@ public class Neo4jDBManager implements AutoCloseable {
 
     }
 
-    //returns an instance of the Neo4jDBManager with driver initialized
-    public Neo4jDBManager openConnection(String uri, String user, String password){
-       Neo4jDBManager GraphDBManager = new Neo4jDBManager(uri,user,password);
-       return GraphDBManager;
-    }
-
     @Override
     public void close() throws Exception{
         driver.close();
@@ -29,16 +21,15 @@ public class Neo4jDBManager implements AutoCloseable {
 
 
 
-    public void matchNode (String nodeName) {
+    public String matchNode (String nodeName) {
         try (Session session = driver.session()) {
-            session.readTransaction(new TransactionWork<String>() {
+            return session.readTransaction(new TransactionWork<String>() {
                 @Override
                 public String execute(Transaction tx) {
                     StatementResult result = tx.run("MATCH (n:Node {name: $nodeName}) RETURN name(a)", parameters("nodeName", nodeName));
                     return result.single().get(0).asString();
                 }
             });
-
         }
     }
 

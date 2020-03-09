@@ -3,7 +3,7 @@ package com.task2_3.server;
 import com.mongodb.client.*;
 import org.bson.Document;
 
-public class MongoDBManager implements DBManager{
+public class MongoDBManager {
     private MongoClient mongoClient;
 
     public void openConnection(){
