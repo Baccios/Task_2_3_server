@@ -5,15 +5,24 @@ import com.mongodb.client.model.*;
 import org.bson.*;
 import org.bson.conversions.*;
 
+import javax.print.Doc;
 import java.util.*;
 
 import static com.mongodb.client.model.Filters.*;
 import static com.mongodb.client.model.Projections.include;
 import static com.mongodb.client.model.Sorts.*;
+import static com.mongodb.client.model.Aggregates.*;
+import static com.mongodb.client.model.Accumulators.*;
+
 //import static com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolver.iterator;
 
 public class MongoDBManager {
     private MongoClient mongoClient;
+
+    private HashMap<String, Airport> airports; //all airports mapped by their IATA code
+    private HashMap<String, Airline> airlines; //all airlines mapped by their OP_UNIQUE_CODE
+
+
 
     public void openConnection(){
       //    mongoClient= MongoClients.create("mongodb://localhost:27017");
@@ -23,16 +32,6 @@ public class MongoDBManager {
     public void close(){
 
     }
-
-
-    /*
-    *
-
-MongoClient
-MongoDatabase database = mongoClient.getDatabase("test");
-
-
-    * */
 
 
     public void insertDocument(Document doc){
@@ -54,6 +53,133 @@ MongoDatabase database = mongoClient.getDatabase("test");
             throw new RuntimeException(e);
         }
     }
+
+
+    //to be called at the beginning of the update procedure, to build the map of airlines
+    public void buildAirlines() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        HashMap<String, Airline> temp_airlines = new HashMap<>();
+        //retrieve all airlines in the database
+        try(
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Collections.singletonList(group("$OP_UNIQUE_CARRIER"))
+                ).cursor()
+        ) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Airline current = new Airline(doc.getString("_id"), null, null); //TODO: retrieve the name
+                temp_airlines.put(doc.getString("_id"), current);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        this.airlines = temp_airlines;
+    }
+
+    //to be called at the beginning of the update procedure, to build the map of airports
+    public void buildAirports() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        HashMap<String, Airport> temp_airports = new HashMap<>();
+        //retrieve all airlines in the database
+        try(
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Collections.singletonList(group("$ORIGIN_AIRPORT"))
+                ).cursor()
+        ) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Document id = (Document)doc.get("_id");
+                Airport current = new Airport(id.getDouble("ORIGIN_AIRPORT_ID").intValue(),
+                                                id.getString("ORIGIN_IATA"),
+                                                null, //TODO: retrieve airport name
+                                                id.getString("ORIGIN_CITY_NAME"),
+                                                id.getString("ORIGIN_STATE_NM"),
+                                                null
+                                    );
+                temp_airports.put(id.getString("ORIGIN_IATA"), current);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        this.airports = temp_airports;
+    }
+
+
+
+    public void getMostServedAirports_byAirline() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        HashMap<String, Double> totalWeights = new HashMap<>();
+        //Retrieve total weights sum by airline to normalize result values
+        try(
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("weight",
+                                new Document("$trunc",
+                                        new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
+                                                new Document("$dateFromString",
+                                                        new Document("dateString", "$FL_DATE")))), 86400000L))))),
+                                group("$OP_UNIQUE_CARRIER",
+                                        sum("SumOfWeights",
+                                                eq("$divide", Arrays.asList(1L, "$weight")))),
+                                sort(ascending("_id")))
+                ).cursor()
+        ) {
+
+            while(cursor.hasNext()) {
+                Document doc = cursor.next();
+                //System.out.println(doc.toJson()); //DEBUG
+                totalWeights.put(doc.getString("_id"), doc.getDouble("SumOfWeights"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //Retrieving the MostServedAirports query
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("weight",
+                                new Document("$trunc",
+                                        new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
+                                                new Document("$dateFromString",
+                                                        new Document("dateString", "$FL_DATE")))), 86400000L))))),
+                                group(and(eq("airline", "$OP_UNIQUE_CARRIER"),
+                                        eq("origin", "$ORIGIN_AIRPORT")),
+                                        sum("serviceCount",
+                                                eq("$divide",
+                                                        Arrays.asList(1L, "$weight")))),
+                                project(include("serviceCount")),
+                                sort(orderBy(ascending("_id.airline"),
+                                        descending("serviceCount"))))
+                ).cursor()
+        ) {
+            Airline currAirline = null;
+            AirlineStatistics currStats = null;
+            Double currentWeight = null;
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Document id = (Document)doc.get("_id");
+                if(currAirline == null || !id.getString("airline").equals(currAirline.identifier)) {
+                    currAirline = this.airlines.get(id.getString("airline"));
+                    currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
+                    currStats.mostServedAirports = new HashMap<>();
+                    currAirline.stats = currStats;
+                    currentWeight = totalWeights.get(currAirline.identifier);
+                }
+                Double currValue = doc.getDouble("serviceCount")/currentWeight;
+                //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
+                Airport currAirport = airports.get(id.getString("origin.ORIGIN_IATA"));
+                currStats.mostServedAirports.put(currValue, currAirport);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+
     //gets the statistics for all routes
     public void getRouteStatistics(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");

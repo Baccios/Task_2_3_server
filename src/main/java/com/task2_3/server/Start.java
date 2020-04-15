@@ -12,6 +12,9 @@ public class Start {
         mongomanager.openConnection();
 
         System.out.println("Connection opened!");
-        mongomanager.getRouteStatistics();
+        //mongomanager.getRouteStatistics();
+        mongomanager.buildAirlines();
+        mongomanager.buildAirports();
+        mongomanager.getMostServedAirports_byAirline();
     }
 }

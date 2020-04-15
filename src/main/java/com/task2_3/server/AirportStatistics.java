@@ -5,13 +5,13 @@ import java.util.HashMap;
 
 public class AirportStatistics extends Statistics {
 
-    double importance;
-    String mostLikelyCauseDelay;
-    String mostLikelyCauseCanc;
-    HashMap<Float, Route> mostServedRoutes; //each element is an array [Percentage, Route]
-    HashMap<Float, Airline> mostServedAirlines; //each element is an array [Percentage, Airline]
+    public double importance;
+    public String mostLikelyCauseDelay;
+    public String mostLikelyCauseCanc;
+    public HashMap<Double, Route> mostServedRoutes; //each element is an array [Percentage, Route]
+    public HashMap<Double, Airline> mostServedAirlines; //each element is an array [Percentage, Airline]
 
-    public AirportStatistics(double cancellationProb, double fifteenDelayProb, double importance, String mostLikelyCauseDelay, String mostLikelyCauseCanc, HashMap<Float, Route> mostServedRoutes, HashMap<Float, Airline> mostServedAirlines) {
+    public AirportStatistics(double cancellationProb, double fifteenDelayProb, double importance, String mostLikelyCauseDelay, String mostLikelyCauseCanc, HashMap<Double, Route> mostServedRoutes, HashMap<Double, Airline> mostServedAirlines) {
         super(cancellationProb, fifteenDelayProb);
         this.importance = importance;
         this.mostLikelyCauseDelay = mostLikelyCauseDelay;
