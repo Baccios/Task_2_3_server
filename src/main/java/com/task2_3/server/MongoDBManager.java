@@ -13,6 +13,7 @@ import static com.mongodb.client.model.Projections.include;
 import static com.mongodb.client.model.Sorts.*;
 import static com.mongodb.client.model.Aggregates.*;
 import static com.mongodb.client.model.Accumulators.*;
+import static com.mongodb.client.model.Projections.computed;
 
 //import static com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolver.iterator;
 
@@ -176,6 +177,71 @@ public class MongoDBManager {
             e.printStackTrace();
         }
 
+    }
+
+    public void getDelayProbability_byAirline() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("weight",
+                                new Document("$trunc",
+                                        new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
+                                                new Document("$dateFromString",
+                                                        new Document("dateString", "$FL_DATE")))), 86400000L))))),
+                                group("$OP_UNIQUE_CARRIER",
+                                        sum("DelaySum",
+                                                eq("$divide",
+                                                        Arrays.asList("$DEP_DEL15", "$weight"))),
+                                        sum("TotalWeight", eq("$divide", Arrays.asList(1L, "$weight")))),
+                                project(computed("Delay_prob", eq("$divide", Arrays.asList("$DelaySum", "$TotalWeight")))))
+                ).cursor()
+        ) {
+            Airline currAirline = null;
+            AirlineStatistics currStats = null;
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                currAirline = this.airlines.get(doc.getString("_id"));
+                currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
+                currAirline.stats = currStats;
+                currStats.fifteenDelayProb = doc.getDouble("Delay_prob");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void getCancProbability_byAirline() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("weight",
+                                        new Document("$trunc",
+                                                new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
+                                                        new Document("$dateFromString",
+                                                                new Document("dateString", "$FL_DATE")))), 86400000L))))),
+                                group("$OP_UNIQUE_CARRIER",
+                                        sum("CancSum",
+                                                eq("$divide",
+                                                        Arrays.asList("$CANCELLED", "$weight"))),
+                                        sum("TotalWeight", eq("$divide", Arrays.asList(1L, "$weight")))),
+                                project(computed("Canc_prob", eq("$divide", Arrays.asList("$CancSum", "$TotalWeight")))))
+                ).cursor()
+        ) {
+            Airline currAirline = null;
+            AirlineStatistics currStats = null;
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                currAirline = this.airlines.get(doc.getString("_id"));
+                currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
+                currAirline.stats = currStats;
+                currStats.cancellationProb = doc.getDouble("Canc_prob");
+                System.out.println(doc.toJson());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
