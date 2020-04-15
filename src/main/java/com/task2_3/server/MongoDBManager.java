@@ -22,7 +22,7 @@ public class MongoDBManager {
 
     private HashMap<String, Airport> airports; //all airports mapped by their IATA code
     private HashMap<String, Airline> airlines; //all airlines mapped by their OP_UNIQUE_CODE
-
+    private HashMap<String, Route> routes; //all routes mapped by "$ORIGIN_IATA$DESTINATION_IATA"
 
 
     public void openConnection(){
@@ -30,6 +30,7 @@ public class MongoDBManager {
         mongoClient = MongoClients.create(
                     "mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
     }
+
     public void close(){
 
     }
@@ -54,6 +55,8 @@ public class MongoDBManager {
             throw new RuntimeException(e);
         }
     }
+
+    
 
 
     //to be called at the beginning of the update procedure, to build the map of airlines
@@ -105,6 +108,31 @@ public class MongoDBManager {
             e.printStackTrace();
         }
         this.airports = temp_airports;
+    }
+
+    public void buildRoutes() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        HashMap<String, Route> temp_routes = new HashMap<>();
+
+        try(
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Collections.singletonList(group(and(eq("origin", "$ORIGIN_AIRPORT.ORIGIN_IATA"),
+                                eq("destination", "$DEST_AIRPORT.DEST_IATA"))))
+                ).cursor()
+        ) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Document id = (Document)doc.get("_id");
+                Airport originAirport = airports.get(id.getString("origin"));
+                Airport destAirport = airports.get(id.getString("destination"));
+                Route temp = new Route(originAirport, destAirport, null);
+                temp_routes.put(temp.toCode(), temp);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        this.routes = temp_routes;
     }
 
 
