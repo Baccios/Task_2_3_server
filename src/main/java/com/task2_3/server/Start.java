@@ -16,6 +16,6 @@ public class Start {
         mongomanager.buildAirlines();
         mongomanager.buildAirports();
         mongomanager.buildRoutes();
-        mongomanager.getCancProbability_byAirline();
+        mongomanager.getIndexes_byAirline();
     }
 }

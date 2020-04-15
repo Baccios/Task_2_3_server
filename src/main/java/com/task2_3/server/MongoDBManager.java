@@ -207,39 +207,8 @@ public class MongoDBManager {
 
     }
 
-    public void getDelayProbability_byAirline() {
-        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
-        try (
-                MongoCursor<Document> cursor = collection.aggregate(
-                        Arrays.asList(addFields(new Field("weight",
-                                new Document("$trunc",
-                                        new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
-                                                new Document("$dateFromString",
-                                                        new Document("dateString", "$FL_DATE")))), 2592000000L))))),
-                                group("$OP_UNIQUE_CARRIER",
-                                        sum("DelaySum",
-                                                eq("$divide",
-                                                        Arrays.asList("$DEP_DEL15", "$weight"))),
-                                        sum("TotalWeight", eq("$divide", Arrays.asList(1L, "$weight")))),
-                                project(computed("Delay_prob", eq("$divide", Arrays.asList("$DelaySum", "$TotalWeight")))))
-                ).cursor()
-        ) {
-            Airline currAirline = null;
-            AirlineStatistics currStats = null;
-            while (cursor.hasNext()) {
-                Document doc = cursor.next();
-                currAirline = this.airlines.get(doc.getString("_id"));
-                currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
-                currAirline.stats = currStats;
-                currStats.fifteenDelayProb = doc.getDouble("Delay_prob");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
-    public void getCancProbability_byAirline() {
+    public void getIndexes_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
         try (
@@ -248,13 +217,25 @@ public class MongoDBManager {
                                         new Document("$trunc",
                                                 new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
                                                         new Document("$dateFromString",
-                                                                new Document("dateString", "$FL_DATE")))), 2592000000L))))),
-                                group("$OP_UNIQUE_CARRIER",
-                                        sum("CancSum",
-                                                eq("$divide",
-                                                        Arrays.asList("$CANCELLED", "$weight"))),
-                                        sum("TotalWeight", eq("$divide", Arrays.asList(1L, "$weight")))),
-                                project(computed("Canc_prob", eq("$divide", Arrays.asList("$CancSum", "$TotalWeight")))))
+                                                                new Document("dateString", "$FL_DATE")))), 2592000000L)))),
+                                new Field("DEP_DELAY",
+                                        new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))), group("$OP_UNIQUE_CARRIER",
+                                sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
+                                sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
+                                sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
+                                sum("WeightsSum", eq("$divide", Arrays.asList(1L, "$weight")))),
+                                addFields(new Field("meanDelay",
+                                        new Document("$divide", Arrays.asList("$DelaySum", "$WeightsSum"))),
+                                new Field("delayProb",
+                                        new Document("$divide", Arrays.asList("$Delay15Sum", "$WeightsSum"))),
+                                new Field("cancProb",
+                                        new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))), addFields(new Field("QoSIndex",
+                                new Document("$cond", Arrays.asList(new Document("$and", Arrays.asList(new Document("$eq", Arrays.asList("$cancProb", 0L)),
+                                        new Document("$eq", Arrays.asList("$delayProb", 0L)))), -1L,
+                                        new Document("$divide", Arrays.asList(1L,
+                                                new Document("$sum",
+                                                        new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb"))
+                                                                .append("$multiply", Arrays.asList("$cancProb", 60L))))))))), project(include("meanDelay", "delayProb", "cancProb", "QoSIndex")))
                 ).cursor()
         ) {
             Airline currAirline = null;
@@ -264,14 +245,15 @@ public class MongoDBManager {
                 currAirline = this.airlines.get(doc.getString("_id"));
                 currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
                 currAirline.stats = currStats;
-                currStats.cancellationProb = doc.getDouble("Canc_prob");
-                System.out.println(doc.toJson());
+                currStats.cancellationProb = doc.getDouble("cancProb");
+                currStats.fifteenDelayProb = doc.getDouble("delayProb");
+                currStats.qosIndicator = doc.getDouble("QoSIndex");
+                System.out.println(doc.toJson()); //DEBUG
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
 
 
     //gets the statistics for all routes
