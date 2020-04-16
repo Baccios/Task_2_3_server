@@ -17,6 +17,10 @@ import static com.mongodb.client.model.Projections.computed;
 
 //import static com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolver.iterator;
 
+/**
+ * This class implements the handler for all interactions with MongoDB server.
+ * Above all, it handles the MongoDB side of the update procedure through the beginUpdate() method.
+ */
 public class MongoDBManager {
     private MongoClient mongoClient;
 
@@ -24,13 +28,18 @@ public class MongoDBManager {
     private HashMap<String, Airline> airlines; //all airlines mapped by their OP_UNIQUE_CODE
     private HashMap<String, Route> routes; //all routes mapped by "$ORIGIN_IATA$DESTINATION_IATA"
 
-
+    /**
+     * Open a connection with MongoDB server, Must be called at the beginning of the application
+     */
     public void openConnection(){
       //    mongoClient= MongoClients.create("mongodb://localhost:27017");
         mongoClient = MongoClients.create(
                     "mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
     }
 
+    /**
+     * Close a MongoDBManager
+     */
     public void close(){
 
     }
@@ -56,10 +65,31 @@ public class MongoDBManager {
         }
     }
 
-    
+    /**
+     * Begin the read oriented database update by querying MongoDB for aggregate statistics.
+     * Put results in local data structures that will be used to generate Neo4j creation scripts
+     */
+    public void beginUpdate() {
+        //initialize local data structures
+        buildAirports();
+        buildAirlines();
+        buildRoutes();
+
+        //populate statistic fields through queries
+        getIndexes_byAirline();
+        getMostServedAirports_byAirline();
+        getRouteStatistics();
+        //TODO: the remaining methods
+
+        //return local data structures
+        //TODO: decide how to return data structures
+    }
 
 
-    //to be called at the beginning of the update procedure, to build the map of airlines
+
+    /**
+     * Initialize the internal data structure containing all airline instances
+     */
     public void buildAirlines() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -81,7 +111,9 @@ public class MongoDBManager {
         this.airlines = temp_airlines;
     }
 
-    //to be called at the beginning of the update procedure, to build the map of airports
+    /**
+     * Initialize the internal data structure containing all airport instances
+     */
     public void buildAirports() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -110,6 +142,9 @@ public class MongoDBManager {
         this.airports = temp_airports;
     }
 
+    /**
+     * Initialize the internal data structure containing all route instances. Must be called after buildAirports() and buildAirlines()
+     */
     public void buildRoutes() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -136,7 +171,10 @@ public class MongoDBManager {
     }
 
 
-
+    /**
+     * Fill all airlines with the statistics regarding the map of the most served airports.
+     * Initialize the stats field in each airline if it's null.
+     */
     public void getMostServedAirports_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -207,7 +245,10 @@ public class MongoDBManager {
 
     }
 
-
+    /**
+     * Fill all airlines with the statistics regarding numerical indexes.
+     * Initialize the stats field in each airline if it's null.
+     */
     public void getIndexes_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -256,7 +297,10 @@ public class MongoDBManager {
     }
 
 
-    //gets the statistics for all routes
+    /**
+     * Fill all routes with their statistics.
+     * Initialize the stats field in each route if it's null.
+     */
     public void getRouteStatistics(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -388,6 +432,11 @@ public class MongoDBManager {
     }
 
     //efficient way of getting ranks by using a cursor
+    /**
+     * Fill all airports with the statistics regarding the map of the most served airlines.
+     * Initialize the stats field in each airport if it's null.
+     */
+    //TODO: change this method name to a more specific one
     public void getRanking(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");

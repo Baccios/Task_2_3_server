@@ -17,5 +17,6 @@ public class Start {
         mongomanager.buildAirports();
         mongomanager.buildRoutes();
         mongomanager.getIndexes_byAirline();
+        mongomanager.getMostServedAirports_byAirline();
     }
 }
