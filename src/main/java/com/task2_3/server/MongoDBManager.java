@@ -187,8 +187,7 @@ public class MongoDBManager {
         //Retrieve total weights sum by airline to normalize result values
         try(
                 MongoCursor<Document> cursor = collection.aggregate(
-                        Arrays.asList(addFields(new Field("weight",
-                                weightDocument)),
+                        Arrays.asList(addFields(new Field("weight", weightDocument)),
                                 group("$OP_UNIQUE_CARRIER",
                                         sum("SumOfWeights",
                                                 eq("$divide", Arrays.asList(1L, "$weight")))),
@@ -208,8 +207,7 @@ public class MongoDBManager {
         //Retrieving the MostServedAirports query
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
-                        Arrays.asList(addFields(new Field("weight",
-                                weightDocument)),
+                        Arrays.asList(addFields(new Field("weight", weightDocument)),
                                 group(and(eq("airline", "$OP_UNIQUE_CARRIER"),
                                         eq("origin", "$ORIGIN_AIRPORT")),
                                         sum("serviceCount",
@@ -253,25 +251,39 @@ public class MongoDBManager {
         MongoCollection<Document> collection = database.getCollection("us_flights");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
-                        Arrays.asList(addFields(new Field("weight", weightDocument),
-                                new Field("DEP_DELAY",
-                                        new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))), group("$OP_UNIQUE_CARRIER",
-                                sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
-                                sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
-                                sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
-                                sum("WeightsSum", eq("$divide", Arrays.asList(1L, "$weight")))),
-                                addFields(new Field("meanDelay",
+                        Arrays.asList(
+                                addFields(new Field("weight", weightDocument),
+                                    new Field("DEP_DELAY",
+                                        new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))
+                                ),
+                                group("$OP_UNIQUE_CARRIER",
+                                    sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
+                                    sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
+                                    sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
+                                    sum("WeightsSum", eq("$divide", Arrays.asList(1L, "$weight")))
+                                ),
+                                addFields(
+                                    new Field("meanDelay",
                                         new Document("$divide", Arrays.asList("$DelaySum", "$WeightsSum"))),
-                                new Field("delayProb",
+                                    new Field("delayProb",
                                         new Document("$divide", Arrays.asList("$Delay15Sum", "$WeightsSum"))),
-                                new Field("cancProb",
-                                        new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))), addFields(new Field("QoSIndex",
-                                new Document("$cond", Arrays.asList(new Document("$and", Arrays.asList(new Document("$eq", Arrays.asList("$cancProb", 0L)),
-                                        new Document("$eq", Arrays.asList("$delayProb", 0L)))), -1L,
+                                    new Field("cancProb",
+                                        new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))),
+                                addFields(
+                                    new Field("QoSIndex",
+                                        new Document("$cond", Arrays.asList(new Document("$and",
+                                            Arrays.asList(
+                                                new Document("$eq", Arrays.asList("$cancProb", 0L)),
+                                                new Document("$eq", Arrays.asList("$delayProb", 0L))
+                                            )),
+                                        -1L,
                                         new Document("$divide", Arrays.asList(1L,
                                                 new Document("$sum",
                                                         new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb"))
-                                                                .append("$multiply", Arrays.asList("$cancProb", 60L))))))))), project(include("meanDelay", "delayProb", "cancProb", "QoSIndex")))
+                                                                .append("$multiply", Arrays.asList("$cancProb", 60L)))))))
+                                    )
+                                ),
+                                project(include("meanDelay", "delayProb", "cancProb", "QoSIndex")))
                 ).cursor()
         ) {
             Airline currAirline = null;
