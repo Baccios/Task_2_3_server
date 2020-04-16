@@ -28,6 +28,11 @@ public class MongoDBManager {
     private HashMap<String, Airline> airlines; //all airlines mapped by their OP_UNIQUE_CODE
     private HashMap<String, Route> routes; //all routes mapped by "$ORIGIN_IATA$DESTINATION_IATA"
 
+    final private Document weightDocument =
+            new Document("$trunc", new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
+                    new Document("$dateFromString",
+                            new Document("dateString", "$FL_DATE")))), 2592000000L)));
+
     /**
      * Open a connection with MongoDB server, Must be called at the beginning of the application
      */
@@ -183,10 +188,7 @@ public class MongoDBManager {
         try(
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(addFields(new Field("weight",
-                                new Document("$trunc",
-                                        new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
-                                                new Document("$dateFromString",
-                                                        new Document("dateString", "$FL_DATE")))), 2592000000L))))),
+                                weightDocument)),
                                 group("$OP_UNIQUE_CARRIER",
                                         sum("SumOfWeights",
                                                 eq("$divide", Arrays.asList(1L, "$weight")))),
@@ -207,10 +209,7 @@ public class MongoDBManager {
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(addFields(new Field("weight",
-                                new Document("$trunc",
-                                        new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
-                                                new Document("$dateFromString",
-                                                        new Document("dateString", "$FL_DATE")))), 2592000000L))))),
+                                weightDocument)),
                                 group(and(eq("airline", "$OP_UNIQUE_CARRIER"),
                                         eq("origin", "$ORIGIN_AIRPORT")),
                                         sum("serviceCount",
@@ -254,11 +253,7 @@ public class MongoDBManager {
         MongoCollection<Document> collection = database.getCollection("us_flights");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
-                        Arrays.asList(addFields(new Field("weight",
-                                        new Document("$trunc",
-                                                new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
-                                                        new Document("$dateFromString",
-                                                                new Document("dateString", "$FL_DATE")))), 2592000000L)))),
+                        Arrays.asList(addFields(new Field("weight", weightDocument),
                                 new Field("DEP_DELAY",
                                         new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))), group("$OP_UNIQUE_CARRIER",
                                 sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
