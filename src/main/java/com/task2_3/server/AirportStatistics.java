@@ -20,6 +20,11 @@ public class AirportStatistics extends Statistics {
         this.mostServedAirlines = new HashMap<>(mostServedAirlines);
     }
 
+    public AirportStatistics(){
+        super();
+        mostServedAirlines = null;
+        mostServedRoutes = null;
+    }
 }
 /*
 db.orders.aggregate(

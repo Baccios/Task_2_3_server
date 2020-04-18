@@ -18,4 +18,9 @@ public class RouteStatistics extends Statistics {
         this.meanDelay = meanDelay;
         this.bestAirlines = new HashMap<>(bestAirlines);
     }
+
+    public RouteStatistics(){
+        super();
+        this.bestAirlines = null;
+    }
 }
