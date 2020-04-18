@@ -30,6 +30,17 @@ public class MongoDBManager {
                     new Document("$dateFromString",
                             new Document("dateString", "$FL_DATE")))), 2592000000L)));
 
+    final private Document QoSDocument =
+            new Document("$cond", Arrays.asList(new Document(
+                    "$and",
+                    Arrays.asList(
+                            new Document("$eq", Arrays.asList("$cancProb", 0L)),
+                            new Document("$eq", Arrays.asList("$delayProb", 0L)))),
+            -1d,
+            new Document("$divide", Arrays.asList(1L,
+                    new Document("$add", Arrays.asList(new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb")),
+                            new Document("$multiply", Arrays.asList("$cancProb", 100L))))))));
+
     /**
      * Open a connection with MongoDB server, Must be called at the beginning of the application
      */
@@ -202,18 +213,7 @@ public class MongoDBManager {
                                         new Field("cancProb",
                                                 new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))),
                                 addFields(
-                                        new Field("QoSIndex",
-                                                new Document("$cond", Arrays.asList(new Document("$or",
-                                                                Arrays.asList(
-                                                                        new Document("$eq", Arrays.asList("$cancProb", 0L)),
-                                                                        new Document("$eq", Arrays.asList("$delayProb", 0L))
-                                                                )),
-                                                        -1.0,
-                                                        new Document("$divide", Arrays.asList(1L,
-                                                                new Document("$sum",
-                                                                        new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb"))
-                                                                                .append("$multiply", Arrays.asList("$cancProb", 60L)))))))
-                                        )
+                                        new Field("QoSIndex", QoSDocument)
                                 ))
                 ).cursor()
         ) {
@@ -222,6 +222,7 @@ public class MongoDBManager {
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
                 currAirport = this.airports.get(doc.getString("_id"));
+
                 currStats = currAirport.stats == null ? new AirportStatistics() : currAirport.stats;
                 currAirport.stats = currStats;
                 currStats.cancellationProb = doc.getDouble("cancProb");
@@ -452,18 +453,7 @@ public class MongoDBManager {
                                     new Field("cancProb",
                                         new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))),
                                 addFields(
-                                    new Field("QoSIndex",
-                                        new Document("$cond", Arrays.asList(new Document("$and",
-                                            Arrays.asList(
-                                                new Document("$eq", Arrays.asList("$cancProb", 0L)),
-                                                new Document("$eq", Arrays.asList("$delayProb", 0L))
-                                            )),
-                                        -1L,
-                                        new Document("$divide", Arrays.asList(1L,
-                                                new Document("$sum",
-                                                        new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb"))
-                                                                .append("$multiply", Arrays.asList("$cancProb", 60L)))))))
-                                    )
+                                    new Field("QoSIndex", QoSDocument)
                                 ),
                                 project(include("meanDelay", "delayProb", "cancProb", "QoSIndex")))
                 ).cursor()
@@ -478,7 +468,7 @@ public class MongoDBManager {
                 currStats.cancellationProb = doc.getDouble("cancProb");
                 currStats.fifteenDelayProb = doc.getDouble("delayProb");
                 currStats.qosIndicator = doc.getDouble("QoSIndex");
-                System.out.println(doc.toJson()); //DEBUG
+                //System.out.println(doc.toJson()); //DEBUG
             }
         } catch (Exception e) {
             e.printStackTrace();
