@@ -79,6 +79,7 @@ public class MongoDBManager {
 
         //populate statistic fields through queries
         getIndexes_byAirline();
+        getIndexes_byAirport();
         getMostServedAirports_byAirline();
         getRouteStatistics();
         //TODO: the remaining methods
@@ -170,6 +171,67 @@ public class MongoDBManager {
             e.printStackTrace();
         }
         this.routes = temp_routes;
+    }
+
+
+    /**
+     * Fill all airlines with the statistics regarding numerical indexes.
+     * Initialize the stats field in each airline if it's null.
+     */
+    public void getIndexes_byAirport() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(
+                                addFields(new Field("weight", weightDocument),
+                                        new Field("DEP_DELAY",
+                                                new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))
+                                ),
+                                group("$ORIGIN_AIRPORT.ORIGIN_IATA",
+                                        sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
+                                        sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
+                                        sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
+                                        sum("WeightsSum", eq("$divide", Arrays.asList(1L, "$weight")))
+                                ),
+                                addFields(
+                                        new Field("meanDelay",
+                                                new Document("$divide", Arrays.asList("$DelaySum", "$WeightsSum"))),
+                                        new Field("delayProb",
+                                                new Document("$divide", Arrays.asList("$Delay15Sum", "$WeightsSum"))),
+                                        new Field("cancProb",
+                                                new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))),
+                                addFields(
+                                        new Field("QoSIndex",
+                                                new Document("$cond", Arrays.asList(new Document("$or",
+                                                                Arrays.asList(
+                                                                        new Document("$eq", Arrays.asList("$cancProb", 0L)),
+                                                                        new Document("$eq", Arrays.asList("$delayProb", 0L))
+                                                                )),
+                                                        -1.0,
+                                                        new Document("$divide", Arrays.asList(1L,
+                                                                new Document("$sum",
+                                                                        new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb"))
+                                                                                .append("$multiply", Arrays.asList("$cancProb", 60L)))))))
+                                        )
+                                ))
+                ).cursor()
+        ) {
+            Airport currAirport = null;
+            AirportStatistics currStats = null;
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                currAirport = this.airports.get(doc.getString("_id"));
+                currStats = currAirport.stats == null ? new AirportStatistics() : currAirport.stats;
+                currAirport.stats = currStats;
+                currStats.cancellationProb = doc.getDouble("cancProb");
+                currStats.fifteenDelayProb = doc.getDouble("delayProb");
+                currStats.qosIndicator = doc.getDouble("QoSIndex");
+                System.out.println(doc.toJson()); //DEBUG
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void getMostServedRoute_byAirport(){

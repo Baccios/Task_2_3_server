@@ -6,6 +6,7 @@ import java.util.HashMap;
 public class AirportStatistics extends Statistics {
 
     public double importance;
+    public double qosIndicator;
     public String mostLikelyCauseDelay;
     public String mostLikelyCauseCanc;
     public HashMap<Double, Route> mostServedRoutes; //each element is an array [Percentage, Route]
