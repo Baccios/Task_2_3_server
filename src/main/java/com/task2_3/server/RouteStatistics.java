@@ -10,7 +10,7 @@ public class RouteStatistics extends Statistics {
     public double meanDelay;
     public Map<Double, Airline> bestAirlines; //each element is an array [QoS_indicator, Airline]
 
-
+    //RouteStatistics constructor is never called, since we need two query methods to initialize all the attributes.
     public RouteStatistics(double cancellationProb, double fifteenDelayProb, double importance, String mostLikelyCauseDelay, String mostLikelyCauseCanc, double meanDelay, HashMap<Double, Airline> bestAirlines) {
         super(cancellationProb, fifteenDelayProb);
         this.importance = importance;
