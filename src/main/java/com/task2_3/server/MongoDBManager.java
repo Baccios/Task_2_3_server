@@ -92,7 +92,7 @@ public class MongoDBManager {
         getIndexes_byAirline();
         getIndexes_byAirport();
         getMostServedAirports_byAirline();
-        getRouteStatistics();
+        getIndexes_byRoute();
         //TODO: the remaining methods
 
         //return local data structures
@@ -118,6 +118,7 @@ public class MongoDBManager {
                 Document doc = cursor.next();
                 Airline current = new Airline(doc.getString("_id"), null, null); //TODO: retrieve the name
                 temp_airlines.put(doc.getString("_id"), current);
+                System.out.println(doc.getString("_id"));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -480,136 +481,231 @@ public class MongoDBManager {
      * Fill all routes with their statistics.
      * Initialize the stats field in each route if it's null.
      */
-    public void getRouteStatistics(){
+    public void getIndexes_byRoute(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
-        try(MongoCursor<Document> cursor = collection.aggregate(Arrays.asList(Aggregates.group(new Document().append("DESTINATION_AIRPORT_ID", "$DEST_AIRPORT.DEST_AIRPORT_ID").append("ORIGIN_AIRPORT_ID", "$ORIGIN_AIRPORT.ORIGIN_AIRPORT_ID")
-                    ,Accumulators.avg("meanDelay","$DEP_DELAY")  //Mean departure delay of a given route
-                    ,Accumulators.sum("totalRouteCancellations","$CANCELLED") //number of cancellations of a given route
-                    ,Accumulators.sum("totalRouteFlights",new Document("$sum", 1)) //total flights of a given route
-                    ,Accumulators.sum( "targetRouteFlights", "$DEP_DEL15") //number of delays>15 of a given route
-                    ,Accumulators.sum( "totalCarrierDelays", new Document( //number of delays caused by carrier delay
-                            "$cond", new Document(
-                                    //The condition is carrier delay>0 and carrier delay!=""
-                                    "if", new Document("$gt", Arrays.asList("$CARRIER_DELAY", 0))
-                            )
-                            .append("then", new Document("$cond",new Document("if", new Document("$ne", Arrays.asList("$CARRIER_DELAY", "") )).append("then", 1).append("else", 0)))
-                            .append("else", 0)
-                        )
-                    )
-                    ,Accumulators.sum( "totalWeatherDelays", new Document(
-                            "$cond", new Document(
-                                    "if", new Document("$gt", Arrays.asList("$WEATHER_DELAY", 0))
-                            )
-                        .append("then", new Document("$cond",new Document("if", new Document("$ne", Arrays.asList("$WEATHER_DELAY", "") )).append("then", 1).append("else", 0)))
-                                    .append("else", 0)
-                            )
-                    )
-                    ,Accumulators.sum( "totalNasDelays", new Document(
+        try(MongoCursor<Document> cursor = collection.aggregate(
+                Arrays.asList(
+                        addFields(new Field("weight", weightDocument),
+                                new Field("DEP_DELAY",
+                                        new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))
+                        ),
+                        Aggregates.group(new Document().append("DEST_IATA", "$DEST_AIRPORT.DEST_IATA").append("ORIGIN_IATA", "$ORIGIN_AIRPORT.ORIGIN_IATA"),
+                                sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
+                                sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
+                                sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
+                                sum("WeightsSum", eq("$divide", Arrays.asList(1L, "$weight"))),
+                                sum( "totalCarrierDelays", new Document( //number of delays caused by carrier delay
                                     "$cond", new Document(
-                                    "if", new Document("$gt", Arrays.asList("$NAS_DELAY", 0))
-                            )
-                        .append("then", new Document("$cond",new Document("if", new Document("$ne", Arrays.asList("$NAS_DELAY", "") )).append("then", 1).append("else", 0)))
+                                            //The condition is carrier delay>15 and carrier delay!=""
+                                            "if", new Document("$gt", Arrays.asList("$CARRIER_DELAY", 15))
+                                    )
+                                    //.append("then", new Document("$cond",new Document("if", new Document("$ne", Arrays.asList("$CARRIER_DELAY", "") )).append("then", 1).append("else", 0)))
+                                    .append("then", 1)
                                     .append("else", 0)
+                                )
                             )
-                    )
-                    ,Accumulators.sum( "totalSecurityDelays", new Document(
+                            ,Accumulators.sum( "totalWeatherDelays", new Document(
                                     "$cond", new Document(
-                                    "if", new Document("$gt", Arrays.asList("$SECURITY_DELAY", 0))
+                                            "if", new Document("$gt", Arrays.asList("$WEATHER_DELAY", 15))
+                                    ).append("then", 1)
+                                     .append("else", 0)
+                                )
                             )
-                        .append("then", new Document("$cond",new Document("if", new Document("$ne", Arrays.asList("$SECURITY_DELAY", "") )).append("then", 1).append("else", 0)))
-                                    .append("else", 0)
-                            )
-                    ),Accumulators.sum( "totalAircraftDelays", new Document(
+                            ,Accumulators.sum( "totalNasDelays", new Document(
                                     "$cond", new Document(
-                                    "if", new Document("$gt", Arrays.asList("$LATE_AIRCRAFT_DELAY", 0))
-                            )
-                                    .append("then", new Document("$cond",new Document("if", new Document("$ne", Arrays.asList("$LATE_AIRCRAFT_DELAY", "") )).append("then", 1).append("else", 0)))
+                                            "if", new Document("$gt", Arrays.asList("$NAS_DELAY", 15))
+                                    )
+                                    .append("then", 1)
                                     .append("else", 0)
+                                )
                             )
-                    ),Accumulators.sum( "cancellationsNumberCodeA", new Document(   //total of cancellations caused by carrier
-                                "$cond", new Document(
-                                "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "A"))
+                            ,Accumulators.sum( "totalSecurityDelays", new Document(
+                                    "$cond", new Document(
+                                            "if", new Document("$gt", Arrays.asList("$SECURITY_DELAY", 15))
+                                    )
+                                    .append("then", 1)
+                                    .append("else", 0)
+                                )
+                            ),Accumulators.sum( "totalAircraftDelays", new Document(
+                                    "$cond", new Document(
+                                            "if", new Document("$gt", Arrays.asList("$LATE_AIRCRAFT_DELAY", 15))
+                                    )
+                                    .append("then", 1)
+                                    .append("else", 0)
+                                )
+                            ),Accumulators.sum( "cancellationsNumberCodeA", new Document(   //total of cancellations caused by carrier
+                                        "$cond", new Document(
+                                        "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "A"))
+                                )
+                                        .append("then", 1)
+                                        .append("else", 0)
+                                )
+                            ),Accumulators.sum( "cancellationsNumberCodeB", new Document( //total of cancellations caused by weather
+                                        "$cond", new Document(
+                                        "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "B"))
+                                )
+                                        .append("then", 1)
+                                        .append("else", 0)
+                                )
+                            ),Accumulators.sum( "cancellationsNumberCodeC", new Document( //total of cancellations caused by national air system
+                                        "$cond", new Document(
+                                        "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "C"))
+                                )
+                                        .append("then", 1)
+                                        .append("else", 0)
+                                )
+                            ),Accumulators.sum( "cancellationsNumberCodeD", new Document( //total of cancellations caused by security
+                                        "$cond", new Document(
+                                        "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "D"))
+                                    )
+                                        .append("then", 1)
+                                        .append("else", 0)
+                                )
+                            )
                         )
-                                .append("then", 1)
-                                .append("else", 0)
-                        )
-                    ),Accumulators.sum( "cancellationsNumberCodeB", new Document( //total of cancellations caused by weather
-                                "$cond", new Document(
-                                "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "B"))
-                        )
-                                .append("then", 1)
-                                .append("else", 0)
-                        )
-                    ),Accumulators.sum( "cancellationsNumberCodeC", new Document( //total of cancellations caused by national air system
-                                "$cond", new Document(
-                                "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "C"))
-                        )
-                                .append("then", 1)
-                                .append("else", 0)
-                        )
-                    ),Accumulators.sum( "cancellationsNumberCodeD", new Document( //total of cancellations caused by security
-                                "$cond", new Document(
-                                "if", new Document("$eq", Arrays.asList("$CANCELLATION_CODE", "D"))
-                        )
-                                .append("then", 1)
-                                .append("else", 0)
-                        )
-                    )
+                        ,addFields(
+                                        new Field("meanDelay",
+                                                new Document("$divide", Arrays.asList("$DelaySum", "$WeightsSum"))),
+                                        new Field("delayProb",
+                                                new Document("$divide", Arrays.asList("$Delay15Sum", "$WeightsSum"))),
+                                        new Field("cancProb",
+                                                new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum"))))
 
-        ),Aggregates.sort(Sorts.ascending("totalRouteFlights")))).iterator()) {
-
+                        /*,Aggregates.sort(Sorts.ascending("totalRouteFlights"))*/)).iterator()) {
+            Route currRoute = null;
+            RouteStatistics currStats = null;
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
-        //        System.out.println(doc.toJson());
-
                 Document id=(Document)doc.get("_id");
 
-                //Data for evaluating delay probability
-                int destinationId=id.getInteger("DESTINATION_AIRPORT_ID");
-                Double originId=id.getDouble("ORIGIN_AIRPORT_ID"); //TODO convert to integer. Why ORIGIN_AIRPORT_ID field is double??
-                double delayProbability=(doc.getInteger("targetRouteFlights")*100.0/doc.getInteger("totalRouteFlights"));
-
                 //Data for evaluating most likely cause of delay. Each cause is given an integer.
-                int  totalCarrierDelays=doc.getInteger("totalCarrierDelays");
+                int totalCarrierDelays=doc.getInteger("totalCarrierDelays");
                 int totalWeatherDelays=doc.getInteger("totalWeatherDelays");
                 int totalNasDelays=doc.getInteger("totalNasDelays");
                 int totalSecurityDelays=doc.getInteger("totalSecurityDelays");
-       //         System.out.println(totalCarrierDelays+" "+totalWeatherDelays+" "+totalNasDelays+" "+totalSecurityDelays);
                 int[] delayArray={totalCarrierDelays,totalWeatherDelays,totalNasDelays,totalSecurityDelays};
                 int indexOfLargest=0;
                 for(int i=0;i<3;i++){
                     indexOfLargest=(delayArray[i] > delayArray[indexOfLargest])?i:indexOfLargest;
                 }
+                String mostLikelyCauseDelay=null;
+                switch(indexOfLargest){
+                    case 0:
+                        mostLikelyCauseDelay="Carrier";
+                        break;
+                    case 1:
+                        mostLikelyCauseDelay="Weather";
+                        break;
+                    case 2:
+                        mostLikelyCauseDelay="National Air System";
+                        break;
+                    case 3:
+                        mostLikelyCauseDelay="Security";
+                        break;
+                }
 
                 //Data for evaluating most likely cause of cancellation. Each cause is given an alphabet character.
-                int cancellationsNumberCodeA=doc.getInteger("cancellationsNumberCodeA");    //code A: carrier
-                int cancellationsNumberCodeB=doc.getInteger("cancellationsNumberCodeB");    //code B: weather
-                int cancellationsNumberCodeC=doc.getInteger("cancellationsNumberCodeC");    //code C: national air system
-                int cancellationsNumberCodeD=doc.getInteger("cancellationsNumberCodeD");    //code D: security
-         //       System.out.println(cancellationsNumberCodeA+" "+cancellationsNumberCodeB+" "+cancellationsNumberCodeC+" "+cancellationsNumberCodeD);
-                int[] cancellationArray={cancellationsNumberCodeA,cancellationsNumberCodeB,cancellationsNumberCodeC,cancellationsNumberCodeD};
+                int cancellationArray[]=new int[4];
+                cancellationArray[0]=doc.getInteger("cancellationsNumberCodeA");    //code A: carrier
+                cancellationArray[1]=doc.getInteger("cancellationsNumberCodeB");    //code B: weather
+                cancellationArray[2]=doc.getInteger("cancellationsNumberCodeC");    //code C: national air system
+                cancellationArray[3]=doc.getInteger("cancellationsNumberCodeD");    //code D: security
                 indexOfLargest=0;
                 for(int i=0;i<3;i++){
                     indexOfLargest=(cancellationArray[i] > cancellationArray[indexOfLargest])?i:indexOfLargest;
                 }
+                String mostLikelyCauseCanc=null;
+                switch(indexOfLargest){
+                    case 0:
+                        mostLikelyCauseCanc="Carrier";
+                        break;
+                    case 1:
+                        mostLikelyCauseCanc="Weather";
+                        break;
+                    case 2:
+                        mostLikelyCauseCanc="National Air System";
+                        break;
+                    case 3:
+                        mostLikelyCauseCanc="Security";
+                        break;
+                    default:
+                        mostLikelyCauseCanc="";
+                        break;
+                }
 
-                double meanDelay=doc.getDouble("meanDelay");
-                double cancellationProbability=(doc.getInteger("totalRouteCancellations")*100.0/doc.getInteger("totalRouteFlights"));
+                String destinationId=id.getString("DEST_IATA");
+                String originId=id.getString("ORIGIN_IATA");
 
-                System.out.println("destination: "+destinationId+" origin: "+originId+" Delay probability: "+delayProbability+" Mean delay: "+meanDelay+" Cancellation probability: "+cancellationProbability);
+                currRoute = this.routes.get(originId+destinationId);
+                if(currRoute==null){
+                    System.out.println("Route doesn't exist! (must update route map)");
+                    System.exit(1);
+                }
+                currStats = currRoute.stats == null ? new RouteStatistics() : currRoute.stats;
+                currRoute.stats = currStats;
+                currStats.meanDelay = doc.getDouble("meanDelay");
+                currStats.cancellationProb = doc.getDouble("cancProb");
+                currStats.fifteenDelayProb = doc.getDouble("delayProb");
+                currStats.mostLikelyCauseDelay = mostLikelyCauseDelay;
+                currStats.mostLikelyCauseCanc = mostLikelyCauseCanc;
+
             }
-      /*    double delayProbability=(targetDelays/totalDelays)*100;
-
-            String strDouble = String.format("%.2f", delayProbability);
-            System.out.println("Probability of having delay greater than 15 minutes is: ");
-            System.out.println(strDouble+"%");*/
+            getAirlinesRanking_byRoute();
+      /*
+            String strDouble = String.format("%.2f", delayProbability);*/
         }
         catch(Exception e){
             System.out.println(e.getMessage());
         }
     }
 
+    public void getAirlinesRanking_byRoute() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(
+                                addFields(new Field("weight", weightDocument),
+                                        new Field("DEP_DELAY",
+                                                new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))
+                                ),
+                                group(new Document().append("DEST_IATA", "$DEST_AIRPORT.DEST_IATA").append("ORIGIN_IATA", "$ORIGIN_AIRPORT.ORIGIN_IATA").append("OP_UNIQUE_CARRIER", "$OP_UNIQUE_CARRIER"),
+                                        sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
+                                        sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
+                                        sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
+                                        sum("WeightsSum", eq("$divide", Arrays.asList(1L, "$weight")))
+                                ),
+                                addFields(
+                                        new Field("meanDelay",
+                                                new Document("$divide", Arrays.asList("$DelaySum", "$WeightsSum"))),
+                                        new Field("delayProb",
+                                                new Document("$divide", Arrays.asList("$Delay15Sum", "$WeightsSum"))),
+                                        new Field("cancProb",
+                                                new Document("$divide", Arrays.asList("$CancSum", "$WeightsSum")))),
+                                addFields(
+                                        new Field("QoSIndex", QoSDocument)
+                                ),
+                                sort(orderBy(ascending("_id.DEST_AIRPORT","_id.ORIGIN_AIRPORT"), ascending("QoSIndex")))
+                        )
+                ).cursor()
+        ) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Document id=(Document)doc.get("_id");
+                String destinationId=id.getString("DEST_IATA");
+                String originId=id.getString("ORIGIN_IATA");
+
+                Route currRoute = this.routes.get(originId+destinationId);
+                Airline currAirline=this.airlines.get(id.getString("OP_UNIQUE_CARRIER"));
+                RouteStatistics currStats=currRoute.stats;
+                currStats.bestAirlines=(currStats.bestAirlines==null)?new HashMap<>():currStats.bestAirlines;
+                currStats.bestAirlines.put(doc.getDouble("QoSIndex"),currAirline);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
     //efficient way of getting ranks by using a cursor
     /**
      * Fill all airports with the statistics regarding the map of the most served airlines.
