@@ -8,7 +8,6 @@ public class Statistics {
         this.cancellationProb = cancellationProb;
         this.fifteenDelayProb = fifteenDelayProb;
     }
-
     public Statistics() {
         cancellationProb = -1;
         fifteenDelayProb = -1;

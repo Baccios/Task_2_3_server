@@ -1,6 +1,7 @@
 package com.task2_3.server;
 
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class AirportStatistics extends Statistics {
@@ -9,16 +10,18 @@ public class AirportStatistics extends Statistics {
     public double qosIndicator;
     public String mostLikelyCauseDelay;
     public String mostLikelyCauseCanc;
-    public HashMap<Double, Route> mostServedRoutes; //each element is an array [Percentage, Route]
-    public HashMap<Double, Airline> mostServedAirlines; //each element is an array [Percentage, Airline]
+    public ArrayList<RankingItem<Airline>> mostServedAirlines; //each element is an array [Percentage, Airline]
+    public ArrayList<RankingItem<Route>> mostServedRoutes; //each element is an array [Percentage, Route]
+    //public HashMap<Double, Route> mostServedRoutes;
+    //public HashMap<Double, Airline> mostServedAirlines;
 
-    public AirportStatistics(double cancellationProb, double fifteenDelayProb, double importance, String mostLikelyCauseDelay, String mostLikelyCauseCanc, HashMap<Double, Route> mostServedRoutes, HashMap<Double, Airline> mostServedAirlines) {
+    public AirportStatistics(double cancellationProb, double fifteenDelayProb, double importance, String mostLikelyCauseDelay, String mostLikelyCauseCanc, ArrayList<RankingItem<Route>> mostServedRoutes, ArrayList<RankingItem<Airline>> mostServedAirlines) {
         super(cancellationProb, fifteenDelayProb);
         this.importance = importance;
         this.mostLikelyCauseDelay = mostLikelyCauseDelay;
         this.mostLikelyCauseCanc = mostLikelyCauseCanc;
-        this.mostServedRoutes = new HashMap<>(mostServedRoutes);
-        this.mostServedAirlines = new HashMap<>(mostServedAirlines);
+        this.mostServedRoutes = new ArrayList<>(mostServedRoutes);
+        this.mostServedAirlines = new ArrayList<>(mostServedAirlines);
     }
 
     public AirportStatistics(){

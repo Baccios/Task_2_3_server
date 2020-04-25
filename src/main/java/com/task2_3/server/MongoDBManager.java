@@ -80,9 +80,9 @@ public class MongoDBManager {
 
     /**
      * Begin the read oriented database update by querying MongoDB for aggregate statistics.
-     * Put results in local data structures that will be used to generate Neo4j creation scripts
+     * Put results in an UpdatePacket instance that will be used to generate Neo4j creation scripts
      */
-    public void beginUpdate() {
+    public UpdatePacket getUpdatePacket() {
         //initialize local data structures
         buildAirports();
         buildAirlines();
@@ -91,12 +91,23 @@ public class MongoDBManager {
         //populate statistic fields through queries
         getIndexes_byAirline();
         getIndexes_byAirport();
-        getMostServedAirports_byAirline();
         getIndexes_byRoute();
-        //TODO: the remaining methods
+        getMostServedRoute_byAirport();
+        getMostServedAirline_byAirport();
+        getAirlinesRanking_byRoute();
+        getMostServedAirports_byAirline();
+
+        HashMap<String, Airline> tempAirlines = airlines;
+        HashMap<String, Airport> tempAirports = airports;
+        HashMap<String, Route> tempRoutes = routes;
+
+        //clean the state of this object
+        airlines = null;
+        airports = null;
+        routes = null;
 
         //return local data structures
-        //TODO: decide how to return data structures
+        return new UpdatePacket(tempAirlines,tempAirports,tempRoutes);
     }
 
 
@@ -190,6 +201,7 @@ public class MongoDBManager {
      * Fill all airlines with the statistics regarding numerical indexes.
      * Initialize the stats field in each airline if it's null.
      */
+    //TODO: add most likely causes for delay and cancellation
     public void getIndexes_byAirport() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -236,6 +248,10 @@ public class MongoDBManager {
         }
     }
 
+    /**
+     * Fill all airports with the statistics regarding the map of the most served routes.
+     * Initialize the stats field in each airline if it's null.
+     */
     public void getMostServedRoute_byAirport(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -285,20 +301,24 @@ public class MongoDBManager {
                     currOriginAirport = this.airports.get(id.getString("origin"));
                     currDestAirport = this.airports.get(id.getString("destination"));
                     currStats = currOriginAirport.stats == null ? new AirportStatistics() : currOriginAirport.stats;
-                    currStats.mostServedRoutes = new HashMap<>();
+                    currStats.mostServedRoutes = new ArrayList<>();
                     currOriginAirport.stats = currStats;
                     currentWeight = totalWeights.get(currOriginAirport.IATA_code);
                 }
-                Double currValue = doc.getDouble("serviceCount")/currentWeight;
+                double currValue = doc.getDouble("serviceCount")/currentWeight;
                 //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
                 Route currRoute = routes.get(currOriginAirport.IATA_code + currDestAirport.IATA_code);
-                currStats.mostServedRoutes.put(currValue, currRoute);
+                currStats.mostServedRoutes.add(new RankingItem<>(currValue, currRoute));
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Fill all airports with the statistics regarding the map of the most served airlines.
+     * Initialize the stats field in each airline if it's null.
+     */
     public void getMostServedAirline_byAirport(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -346,14 +366,14 @@ public class MongoDBManager {
                 if(currAirport == null || !id.getString("origin").equals(currAirport.identifier)) {
                     currAirport = this.airports.get(id.getString("origin"));
                     currStats = currAirport.stats == null ? new AirportStatistics() : currAirport.stats;
-                    currStats.mostServedAirlines = new HashMap<>();
+                    currStats.mostServedAirlines = new ArrayList<>();
                     currAirport.stats = currStats;
                     currentWeight = totalWeights.get(currAirport.IATA_code);
                 }
-                Double currValue = doc.getDouble("serviceCount")/currentWeight;
+                double currValue = doc.getDouble("serviceCount")/currentWeight;
                 //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
                 Airline currAirline = airlines.get(id.getString("origin.OP_UNIQUE_CARRIER"));
-                currStats.mostServedAirlines.put(currValue, currAirline);
+                currStats.mostServedAirlines.add(new RankingItem<>(currValue, currAirline));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -411,14 +431,14 @@ public class MongoDBManager {
                 if(currAirline == null || !id.getString("airline").equals(currAirline.identifier)) {
                     currAirline = this.airlines.get(id.getString("airline"));
                     currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
-                    currStats.mostServedAirports = new HashMap<>();
+                    currStats.mostServedAirports = new ArrayList<>();
                     currAirline.stats = currStats;
                     currentWeight = totalWeights.get(currAirline.identifier);
                 }
-                Double currValue = doc.getDouble("serviceCount")/currentWeight;
+                double currValue = doc.getDouble("serviceCount")/currentWeight;
                 //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
                 Airport currAirport = airports.get(id.getString("origin.ORIGIN_IATA"));
-                currStats.mostServedAirports.put(currValue, currAirport);
+                currStats.mostServedAirports.add(new RankingItem<>(currValue, currAirport));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -606,7 +626,7 @@ public class MongoDBManager {
                 }
 
                 //Data for evaluating most likely cause of cancellation. Each cause is given an alphabet character.
-                int cancellationArray[]=new int[4];
+                int[] cancellationArray =new int[4];
                 cancellationArray[0]=doc.getInteger("cancellationsNumberCodeA");    //code A: carrier
                 cancellationArray[1]=doc.getInteger("cancellationsNumberCodeB");    //code B: weather
                 cancellationArray[2]=doc.getInteger("cancellationsNumberCodeC");    //code C: national air system
@@ -699,8 +719,9 @@ public class MongoDBManager {
                 Route currRoute = this.routes.get(originId+destinationId);
                 Airline currAirline=this.airlines.get(id.getString("OP_UNIQUE_CARRIER"));
                 RouteStatistics currStats=currRoute.stats;
-                currStats.bestAirlines=(currStats.bestAirlines==null)?new HashMap<>():currStats.bestAirlines;
-                currStats.bestAirlines.put(doc.getDouble("QoSIndex"),currAirline);
+                currStats.bestAirlines=(currStats.bestAirlines==null)?new ArrayList<>():currStats.bestAirlines;
+                double currValue = doc.getDouble("QoSIndex");
+                currStats.bestAirlines.add(new RankingItem<>(currValue,currAirline));
             }
         } catch (Exception e) {
             e.printStackTrace();
