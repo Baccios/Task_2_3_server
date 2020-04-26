@@ -802,7 +802,7 @@ public class MongoDBManager {
                 currStats.mostLikelyCauseCanc = mostLikelyCauseCanc;
 
             }
-            getAirlinesRanking_byRoute();
+    //        getAirlinesRanking_byRoute();
       /*
             String strDouble = String.format("%.2f", delayProbability);*/
         }
