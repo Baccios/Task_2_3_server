@@ -129,7 +129,7 @@ public class MongoDBManager {
                 Document doc = cursor.next();
                 Airline current = new Airline(doc.getString("_id"), null, null); //TODO: retrieve the name
                 temp_airlines.put(doc.getString("_id"), current);
-                System.out.println(doc.getString("_id"));
+                //System.out.println(doc.getString("_id")); //DEBUG
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -201,7 +201,6 @@ public class MongoDBManager {
      * Fill all airlines with the statistics regarding numerical indexes.
      * Initialize the stats field in each airline if it's null.
      */
-    //TODO: add most likely causes for delay and cancellation
     public void getIndexes_byAirport() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
@@ -372,7 +371,7 @@ public class MongoDBManager {
                 currStats.qosIndicator = doc.getDouble("QoSIndex");
                 currStats.mostLikelyCauseDelay = mostLikelyCauseDelay;
                 currStats.mostLikelyCauseCanc = mostLikelyCauseCanc;
-                System.out.println(doc.toJson()); //DEBUG
+                //System.out.println(doc.toJson()); //DEBUG
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -503,7 +502,7 @@ public class MongoDBManager {
                 }
                 double currValue = doc.getDouble("serviceCount")/currentWeight;
                 //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
-                Airline currAirline = airlines.get(id.getString("origin.OP_UNIQUE_CARRIER"));
+                Airline currAirline = airlines.get(id.getString("airline"));
                 currStats.mostServedAirlines.add(new RankingItem<>(currValue, currAirline));
             }
         } catch (Exception e) {
@@ -559,6 +558,7 @@ public class MongoDBManager {
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
                 Document id = (Document)doc.get("_id");
+                Document origin = (Document)id.get("origin");
                 if(currAirline == null || !id.getString("airline").equals(currAirline.identifier)) {
                     currAirline = this.airlines.get(id.getString("airline"));
                     currStats = currAirline.stats == null ? new AirlineStatistics() : currAirline.stats;
@@ -568,7 +568,7 @@ public class MongoDBManager {
                 }
                 double currValue = doc.getDouble("serviceCount")/currentWeight;
                 //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
-                Airport currAirport = airports.get(id.getString("origin.ORIGIN_IATA"));
+                Airport currAirport = airports.get(origin.getString("ORIGIN_IATA"));
                 currStats.mostServedAirports.add(new RankingItem<>(currValue, currAirport));
             }
         } catch (Exception e) {
@@ -863,13 +863,11 @@ public class MongoDBManager {
      * Fill all airports with the statistics regarding the map of the most served airlines.
      * Initialize the stats field in each airport if it's null.
      */
-    //TODO: change this method name to a more specific one
     public void getRanking(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
 
 
-        //TODO choose if cursor or not, this solution is not MEMORY SAFE and slower than the equivalent with cursors, for testing remove Accumulators.push https://stackoverflow.com/questions/44587829/sorting-and-ranking-documents-based-on-key-values
         //if this solution is chosen delete RankClass and RankKey
         try(MongoCursor<Document> cursor = collection.aggregate(
                 Arrays.asList(
@@ -900,7 +898,7 @@ public class MongoDBManager {
             throw new RuntimeException(e);
         }
 
-        //TODO this solution is better but doesn't exploit aggregations
+
         /*try(MongoCursor<Document> cursor = collection.find().sort(orderBy(ascending("DEST_AIRPORT.DEST_AIRPORT_ID", "OP_UNIQUE_CARRIER"))).projection(include("DEST_AIRPORT.DEST_AIRPORT_ID","OP_UNIQUE_CARRIER")).iterator()) {
             Document doc = cursor.next();
             Document airport = (Document) doc.get("DEST_AIRPORT");

@@ -13,6 +13,5 @@ public class Updater extends TimerTask {
     public void run(){
         UpdatePacket updatePacket=mongomanager.getUpdatePacket();
         neomanager.update(updatePacket);
-
     }
 }
