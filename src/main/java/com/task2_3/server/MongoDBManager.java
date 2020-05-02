@@ -211,7 +211,7 @@ public class MongoDBManager {
                                         new Field("DEP_DELAY",
                                                 new Document("$max", Arrays.asList(0L, "$DEP_DELAY")))
                                 ),
-                                group("$ORIGIN_AIRPORT.ORIGIN_IATA",
+                                group("$ORIGIN_AIRPORT",
                                         sum("DelaySum", eq("$divide", Arrays.asList("$DEP_DELAY", "$weight"))),
                                         sum("Delay15Sum", eq("$divide", Arrays.asList("$DEP_DEL15", "$weight"))),
                                         sum("CancSum", eq("$divide", Arrays.asList("$CANCELLED", "$weight"))),
@@ -306,7 +306,7 @@ public class MongoDBManager {
             AirportStatistics currStats = null;
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
-
+                Document id = (Document) doc.get("_id");
                 //Data for evaluating most likely cause of delay. Each cause is given an integer.
                 int totalCarrierDelays=doc.getInteger("totalCarrierDelays");
                 int totalWeatherDelays=doc.getInteger("totalWeatherDelays");
@@ -362,7 +362,9 @@ public class MongoDBManager {
                         break;
                 }
 
-                currAirport = this.airports.get(doc.getString("_id"));
+                currAirport = this.airports.get(id.getString("ORIGIN_IATA"));
+                currAirport.city = id.getString("ORIGIN_CITY_NAME");
+                currAirport.state = id.getString("ORIGIN_STATE_NM");
 
                 currStats = currAirport.stats == null ? new AirportStatistics() : currAirport.stats;
                 currAirport.stats = currStats;

@@ -118,7 +118,9 @@ public class Neo4jDBManager implements AutoCloseable {
             "airport.fifteenDelayProb = $delayProb, "+
             "airport.qosIndicator = $qosIndicator, "+
             "airport.mostLikelyCauseDelay = $causeDelay, "+
-            "airport.mostLikelyCauseCanc = $causeCanc "+
+            "airport.mostLikelyCauseCanc = $causeCanc, "+
+            "airport.city = $city, "+
+            "airport.state = $state "+
         "WITH airport ";
         String currQuery = baseQuery;
         for (Airport currAirport : airports) {
@@ -140,6 +142,8 @@ public class Neo4jDBManager implements AutoCloseable {
             parameters.put("qosIndicator", currAirport.stats.qosIndicator);
             parameters.put("causeDelay", currAirport.stats.mostLikelyCauseDelay);
             parameters.put("causeCanc", currAirport.stats.mostLikelyCauseCanc);
+            parameters.put("state", currAirport.state);
+            parameters.put("city", currAirport.city);
 
 
             for (int i = 0; i < airlineRanking.size(); ++i) {
