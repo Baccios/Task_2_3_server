@@ -112,7 +112,7 @@ public class Neo4jDBManager implements AutoCloseable {
 
 
     private Void updateAirports_query(Transaction tx, ArrayList<Airport> airports) {
-        String baseQuery = "MERGE (airport:Airport {IATA_Code:$IATA}) "+
+        String baseQuery = "MERGE (airport:Airport {IATA_code:$IATA}) "+
         "SET airport.name = $name, "+
             "airport.cancellationProb = $cancProb, "+
             "airport.fifteenDelayProb = $delayProb, "+
@@ -140,6 +140,8 @@ public class Neo4jDBManager implements AutoCloseable {
             parameters.put("qosIndicator", currAirport.stats.qosIndicator);
             parameters.put("causeDelay", currAirport.stats.mostLikelyCauseDelay);
             parameters.put("causeCanc", currAirport.stats.mostLikelyCauseCanc);
+
+
             for (int i = 0; i < airlineRanking.size(); ++i) {
                 parameters.put("air_id_" + i, airlineRanking.get(i).item.identifier);
                 parameters.put("air_percentage_" + i, airlineRanking.get(i).value);
