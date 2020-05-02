@@ -13,6 +13,7 @@ public class Start {
 
 
         neomanager.update(mongomanager.getUpdatePacket());
+        neomanager.close();
 
         /*
         System.out.println("Connection opened!");
