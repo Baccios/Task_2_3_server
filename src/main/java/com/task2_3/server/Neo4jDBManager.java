@@ -24,16 +24,6 @@ public class Neo4jDBManager implements AutoCloseable {
     }
 
 
-
-    public String matchNode (String nodeName) {
-        try (Session session = driver.session()) {
-            return session.readTransaction(tx -> {
-                Result result = tx.run("MATCH (n:Node {name: $nodeName}) RETURN name(a)", parameters("nodeName", nodeName));
-                return result.single().get(0).asString();
-            });
-        }
-    }
-
     private Void createNode_query (Transaction tx, String nodeName){
         tx.run("CREATE (n:Node {name:$nodeName})",parameters("nodeName",nodeName));
         return null;

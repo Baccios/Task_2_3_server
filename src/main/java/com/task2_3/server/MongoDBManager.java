@@ -48,6 +48,7 @@ public class MongoDBManager {
       //    mongoClient= MongoClients.create("mongodb://localhost:27017");
         mongoClient = MongoClients.create(
                     "mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
+                    //"mongodb://172.16.1.9:27020/[defaultauthdb]]?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
     }
 
     /**
@@ -110,7 +111,29 @@ public class MongoDBManager {
         return new UpdatePacket(tempAirlines,tempAirports,tempRoutes);
     }
 
-
+    /**
+     * Retrieve (code, name) pairs for each airline in the database
+     */
+    private void retrieveAirlineNames() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("airlines");
+        //retrieve all airlines in the database
+        try(
+                MongoCursor<Document> cursor = collection.find().cursor()
+        ) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Airline current = airlines.get(doc.getString("AIRLINE_CODE"));
+                int i = 0;
+                if(current != null) {
+                    current.name = doc.getString("AIRLINE_NAME");
+                }
+                //System.out.println(doc.getString("_id")); //DEBUG
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * Initialize the internal data structure containing all airline instances
@@ -135,6 +158,7 @@ public class MongoDBManager {
             e.printStackTrace();
         }
         this.airlines = temp_airlines;
+        retrieveAirlineNames();
     }
 
     /**
