@@ -119,11 +119,7 @@ public class Neo4jDBManager implements AutoCloseable {
                 System.out.println("Error! Airline ranking (by airport) hasn't been initialized!");
                 return null;
             }
-            ArrayList<RankingItem<Route>> routeRanking = currAirport.stats.mostServedRoutes;
-            if (routeRanking == null) {
-                System.out.println("Error! Route ranking (by airport) hasn't been initialized!");
-                return null;
-            }
+
             HashMap<String, Object> parameters = new HashMap<>();
             parameters.put("IATA", currAirport.IATA_code);
             parameters.put("name", currAirport.name);
@@ -142,14 +138,17 @@ public class Neo4jDBManager implements AutoCloseable {
                 currQuery += "MERGE (airline_" + i + ":Airline {identifier: $air_id_" + i + "}) " + //if the airline is new it's created
                         "CREATE (airport)-[:SERVED_BY {percentage: $air_percentage_" + i + "}]->(airline_" + i + ") ";
             }
+            /*
             currQuery += "WITH airport ";
             for (int i = 0; i < routeRanking.size(); ++i) {
                 parameters.put("destIATA_" + i, routeRanking.get(i).item.destination.IATA_code);
                 parameters.put("route_percentage_" + i, routeRanking.get(i).value);
-                currQuery += "MATCH (dest:Airport {IATA_code: $destIATA_" + i + "})" +
-                        "MERGE (airport)<-[:ORIGIN]-(route_" + i + ":Route)-[:DESTINATION]->(dest)" + //if the route is new it's created
+                currQuery +=
+                        "MERGE (airport)<-[:ORIGIN]-(route_" + i + ":Route)-[:DESTINATION]->(dest_"+ i +":Airport {IATA_code: $destIATA_" + i + "}) " + //if the route is new it's created
                         "CREATE (airport)-[:POSSIBLE_DEPARTURE {percentage: $route_percentage_" + i + "}]->(route_" + i + ") ";
             }
+            */
+
             tx.run(currQuery, parameters);
             currQuery = baseQuery;
         }
@@ -162,7 +161,7 @@ public class Neo4jDBManager implements AutoCloseable {
      * @param iter an iterator through all the updated airports
      */
     public void updateAirports(Iterator<Airport> iter) {
-        final int BATCH_SIZE = 500;
+        final int BATCH_SIZE = 20;
         ArrayList<Airport> currAirports = new ArrayList<>();
         while(iter.hasNext()) {
             for(int i = 0; i<BATCH_SIZE; ++i) {
@@ -180,10 +179,69 @@ public class Neo4jDBManager implements AutoCloseable {
                     }
                 });
             }
-            System.out.println(currAirports.size() + " Airports has been inserted!"); //DEBUG
+            System.out.println(currAirports.size() + " Airports have been inserted!"); //DEBUG
             currAirports.clear();
         }
     }
+
+
+    private Void updateDepartures_query(Transaction tx, ArrayList<Airport> airports) {
+        String baseQuery = "MATCH (airport:Airport {IATA_code:$IATA}) ";
+        String currQuery = baseQuery;
+        for (Airport currAirport : airports) {
+
+            ArrayList<RankingItem<Route>> routeRanking = currAirport.stats.mostServedRoutes;
+            if (routeRanking == null) {
+                System.out.println("Error! Route ranking (by airport) hasn't been initialized!");
+                return null;
+            }
+            HashMap<String, Object> parameters = new HashMap<>();
+            parameters.put("IATA", currAirport.IATA_code);
+
+            for (int i = 0; i < routeRanking.size(); ++i) {
+                parameters.put("destIATA_" + i, routeRanking.get(i).item.destination.IATA_code);
+                parameters.put("route_percentage_" + i, routeRanking.get(i).value);
+                currQuery += "WITH airport "+
+                        "MATCH (dest_"+ i +":Airport {IATA_code: $destIATA_" + i + "}) "+
+                        "MATCH (airport)<-[:ORIGIN]-(route_" + i + ":Route)-[:DESTINATION]->(dest_"+ i +") " + //if the route is new it's created
+                        "CREATE (airport)-[:POSSIBLE_DEPARTURE {percentage: $route_percentage_" + i + "}]->(route_" + i + ") ";
+            }
+
+            System.out.println("Inserting "+routeRanking.size()+" departures from airport "+currAirport.name); //DEBUG
+            tx.run(currQuery, parameters);
+            currQuery = baseQuery;
+        }
+        tx.commit();
+        return null;
+    }
+
+    /**
+     * To be called after all the other update methods, update all possible departures from each airport
+     * @param iter the iterator through all the updated airports
+     */
+    public void updateDepartures(Iterator<Airport> iter) {
+        final int BATCH_SIZE = 2;
+        ArrayList<Airport> currAirports = new ArrayList<>();
+        while(iter.hasNext()) {
+            for(int i = 0; i<BATCH_SIZE; ++i) {
+                if(!iter.hasNext()) {
+                    break;
+                }
+                Airport current = iter.next();
+                currAirports.add(current);
+            }
+            try (Session session = driver.session()) {
+                session.writeTransaction(new TransactionWork<Void>() {
+                    @Override
+                    public Void execute(Transaction tx) {
+                        return updateDepartures_query(tx, currAirports);
+                    }
+                });
+            }
+            currAirports.clear();
+        }
+    }
+
 
     private Void updateAirlines_query(Transaction tx, ArrayList<Airline> airlines) {
         String baseQuery = "MERGE (airline:Airline {identifier:$identifier}) "+
@@ -249,8 +307,8 @@ public class Neo4jDBManager implements AutoCloseable {
     }
 
     private Void updateRoutes_query(Transaction tx, ArrayList<Route> routes) {
-        String baseQuery = "MATCH (origin:Airport {IATA_code: $origin}) "+
-        "MATCH (destination:Airport {IATA_code: $destination})"+
+        String baseQuery = "MERGE (origin:Airport {IATA_code: $origin}) "+
+        "MERGE (destination:Airport {IATA_code: $destination})"+
         "MERGE (origin)<-[:ORIGIN]-(route:Route)-[:DESTINATION]->(destination)"+
         "SET route.cancellationProb = $cancProb, "+
             "route.fifteenDelayProb = $delayProb, "+
@@ -316,15 +374,22 @@ public class Neo4jDBManager implements AutoCloseable {
 
     public void update(UpdatePacket packet) {
 
+
+
         System.out.println("Flushing all the database...");
         flushRelationships();
         System.out.println("All relationships are flushed! Flushing nodes...");
         flushNodes();
         System.out.println("Database correctly flushed!");
 
+
         System.out.println("Updating all airlines in the database...");
         updateAirlines(packet.airlineIterator());
         System.out.println("Airlines correctly updated!");
+
+        System.out.println("Updating all Routes in the database...");
+        updateRoutes(packet.routeIterator());
+        System.out.println("Routes correctly updated!");
 
         System.out.println("Updating all Airports in the database...");
         updateAirports(packet.airportIterator());
@@ -332,9 +397,11 @@ public class Neo4jDBManager implements AutoCloseable {
 
 
 
-        System.out.println("Updating all Routes in the database...");
-        updateRoutes(packet.routeIterator());
-        System.out.println("Routes correctly updated!");
+        System.out.println("Updating all possible departures in the database...");
+        updateDepartures(packet.airportIterator());
+        System.out.println("Departures correctly updated!");
+
+
 
 
     }

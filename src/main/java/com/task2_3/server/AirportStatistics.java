@@ -12,8 +12,6 @@ public class AirportStatistics extends Statistics {
     public String mostLikelyCauseCanc;
     public ArrayList<RankingItem<Airline>> mostServedAirlines; //each element is an array [Percentage, Airline]
     public ArrayList<RankingItem<Route>> mostServedRoutes; //each element is an array [Percentage, Route]
-    //public HashMap<Double, Route> mostServedRoutes;
-    //public HashMap<Double, Airline> mostServedAirlines;
 
     public AirportStatistics(double cancellationProb, double fifteenDelayProb, double importance, String mostLikelyCauseDelay, String mostLikelyCauseCanc, ArrayList<RankingItem<Route>> mostServedRoutes, ArrayList<RankingItem<Airline>> mostServedAirlines) {
         super(cancellationProb, fifteenDelayProb);

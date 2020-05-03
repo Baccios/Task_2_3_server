@@ -162,6 +162,30 @@ public class MongoDBManager {
     }
 
     /**
+     * Retrieve (code, name) pairs for each airport in the database
+     */
+    private void retrieveAirportNames() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("airports");
+        //retrieve all airlines in the database
+        try(
+                MongoCursor<Document> cursor = collection.find().cursor()
+        ) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                Airport current = airports.get(doc.getString("IATA_CODE"));
+                int i = 0;
+                if(current != null) {
+                    current.name = doc.getString("AIRPORT_NAME");
+                }
+                //System.out.println(doc.getString("_id")); //DEBUG
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * Initialize the internal data structure containing all airport instances
      */
     public void buildAirports() {
@@ -179,7 +203,7 @@ public class MongoDBManager {
                 Document id = (Document)doc.get("_id");
                 Airport current = new Airport(id.getDouble("ORIGIN_AIRPORT_ID").intValue(),
                                                 id.getString("ORIGIN_IATA"),
-                                                null, //TODO: retrieve airport name
+                                                null,
                                                 id.getString("ORIGIN_CITY_NAME"),
                                                 id.getString("ORIGIN_STATE_NM"),
                                                 null
@@ -190,6 +214,7 @@ public class MongoDBManager {
             e.printStackTrace();
         }
         this.airports = temp_airports;
+        retrieveAirportNames();
     }
 
     /**
@@ -453,14 +478,14 @@ public class MongoDBManager {
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
                 Document id = (Document)doc.get("_id");
-                if(currOriginAirport == null || !id.getString("origin").equals(currOriginAirport)) {
+                if(currOriginAirport == null || !id.getString("origin").equals(currOriginAirport.IATA_code)) {
                     currOriginAirport = this.airports.get(id.getString("origin"));
-                    currDestAirport = this.airports.get(id.getString("destination"));
                     currStats = currOriginAirport.stats == null ? new AirportStatistics() : currOriginAirport.stats;
                     currStats.mostServedRoutes = new ArrayList<>();
                     currOriginAirport.stats = currStats;
                     currentWeight = totalWeights.get(currOriginAirport.IATA_code);
                 }
+                currDestAirport = this.airports.get(id.getString("destination"));
                 double currValue = doc.getDouble("serviceCount")/currentWeight;
                 //System.out.println(currValue + ", " + doc.getDouble("serviceCount") ); //DEBUG
                 Route currRoute = routes.get(currOriginAirport.IATA_code + currDestAirport.IATA_code);
@@ -519,7 +544,7 @@ public class MongoDBManager {
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
                 Document id = (Document)doc.get("_id");
-                if(currAirport == null || !id.getString("origin").equals(currAirport.identifier)) {
+                if(currAirport == null || !id.getString("origin").equals(currAirport.IATA_code)) {
                     currAirport = this.airports.get(id.getString("origin"));
                     currStats = currAirport.stats == null ? new AirportStatistics() : currAirport.stats;
                     currStats.mostServedAirlines = new ArrayList<>();
