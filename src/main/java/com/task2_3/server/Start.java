@@ -11,6 +11,11 @@ public class Start {
         MongoDBManager mongomanager = new MongoDBManager();
         mongomanager.openConnection();
 
+        PasswordManager pswman = new PasswordManager();
+        pswman.setCredentials("admin", "admin");
+        System.out.println(pswman.authenticate("admin", "admin"));
+        System.out.println(pswman.authenticate("admin", "arribaia"));
+
         //neomanager.update(mongomanager.getUpdatePacket());
         mongomanager.close();
         neomanager.close();

@@ -14,6 +14,7 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
     PrintWriter out;
     String username;
     String password;
+    PasswordManager pswManager;
 
     MongoDBManager mongomanager;
 
@@ -43,8 +44,7 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
 
            // SSLServerSocketFactory factory = (SSLServerSocketFactory)SSLServerSocketFactory.getDefault();
 
-            SSLServerSocket socket = (SSLServerSocket) factory.createServerSocket(port);
-            return socket;
+            return (SSLServerSocket) factory.createServerSocket(port);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -74,44 +74,48 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
                     )
             );
 
-            String[] credentials = getCredentials();
-            String comparison = "Auth " + credentials[0] + " " + credentials[1];
-            String inputLine = MyIn.readLine();
-            System.out.println("Authentication request received:");
-            System.out.println("The text of the request is: \""+inputLine+"\"");
 
-            if(inputLine.equals(comparison)) {
-                boolean available = checkAndSetAdmin();
-                if(!available) {
-                    if(!sendMessage("Auth denied errcode 2", MyOut)) {
+            String inputLine = MyIn.readLine();
+            String[] inputCredentials = inputLine.split(" ");
+
+            System.out.println("Authentication request received:");
+            //System.out.println("The text of the request is: \""+inputLine+"\""); //DEBUG
+            if(inputLine.startsWith("Auth ") && inputCredentials.length == 3) {
+                String username = inputCredentials[1];
+                String password = inputCredentials[2];
+                if(pswManager.authenticate(username,password)) {
+                    boolean available = checkAndSetAdmin();
+                    if(!available) {
+                        if(!sendMessage("Auth denied errcode 2", MyOut)) {
+                            System.err.println("Error occurred during authentication");
+                        }
+                        MyIn.close();
+                        MyOut.close();
+                        System.out.println("Authentication denied: Server was busy with another admin");
+                        return false;
+                    }
+                    else if(!sendMessage("Auth successful", MyOut)) {
+                        System.err.println("Error occurred during authentication");
+                        MyIn.close();
+                        MyOut.close();
+                        return false;
+                    }
+                    System.out.println("Authentication successful");
+                    socket = sock;
+                    in = MyIn;
+                    out = MyOut;
+                    return true;
+                }
+
+                else {
+                    if(!sendMessage("Auth denied errcode 1", MyOut)) {
                         System.err.println("Error occurred during authentication");
                     }
-                    MyIn.close();
-                    MyOut.close();
-                    System.out.println("Authentication denied: Server was busy with another admin");
-                    return false;
-                }
-                else if(!sendMessage("Auth successful", MyOut)) {
-                    System.err.println("Error occurred during authentication");
+                    System.out.println("Authentication denied: wrong credentials");
                     MyIn.close();
                     MyOut.close();
                     return false;
                 }
-                System.out.println("Authentication successful");
-                socket = sock;
-                in = MyIn;
-                out = MyOut;
-                return true;
-            }
-
-            else if(inputLine.startsWith("Auth")) {
-                if(!sendMessage("Auth denied errcode 1", MyOut)) {
-                    System.err.println("Error occurred during authentication");
-                }
-                System.out.println("Authentication denied: wrong credentials");
-                MyIn.close();
-                MyOut.close();
-                return false;
             }
 
             /*
@@ -139,7 +143,8 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
 
         System.out.println("Managing the credentials request...");
 
-        //TODO: update admin credentials in the database
+        //update admin credentials
+        pswManager.setCredentials(username, psw);
 
         if(!sendMessage("Ack credentials")) {
             System.err.println("Error occurred during credentials request processing");
@@ -410,9 +415,10 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
     public Admin_Protocol_Server(int port, String username, String password) {
         this.port = port;
         this.server = getServerSocket();
+        pswManager = new PasswordManager();
         mongomanager = null;
-        //don't keep a neo4j connection always open as only one command interacts with neo4j
-        setCredentials(username,password);
+        //don't keep a neo4j connection always open during a connection as only one command interacts with neo4j
+        pswManager.setCredentials(username,password); //default values at the server initialization
         this.AdminIsChecked = false;
         newListener();
     }
