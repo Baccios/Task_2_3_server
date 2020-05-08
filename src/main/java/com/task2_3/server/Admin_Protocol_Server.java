@@ -15,6 +15,8 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
     String username;
     String password;
 
+    MongoDBManager mongomanager;
+
     boolean AdminIsChecked;
 
     /**
@@ -174,7 +176,8 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             return;
         }
 
-        //TODO: update starting year in the database
+        //service execution
+        mongomanager.deleteUntilYear(year);
 
         System.out.println("Year request correctly committed");
     }
@@ -189,7 +192,9 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             System.err.println("Error occurred during update request processing");
         }
 
-        //TODO: force the update algorithm
+        Neo4jDBManager neo4jmanager = new Neo4jDBManager("bolt://172.16.1.15:7687", "neo4j", "root");
+        neo4jmanager.update(mongomanager.getUpdatePacket());
+        neo4jmanager.close();
 
         System.out.println("Update request correctly committed");
     }
@@ -224,7 +229,20 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             System.err.println("Error occurred during limit request processing");
         }
 
-        //TODO: handle the request on MongoDB
+        double size_mega = (mongomanager.getStorageSize())/(1000000.0);
+        double delta = size_mega - limit*1000000;
+
+        while(delta > 0) {
+            if(delta > 8000000) {//in a year there are about 6GB of flights, so we can be quite sure
+                mongomanager.deleteOldestYear();
+            }
+            else {
+                mongomanager.deleteOldestMonth();
+            }
+            size_mega = (mongomanager.getStorageSize())/(1000000.0);
+            delta = size_mega - limit;
+        }
+
 
         System.out.println("Limit request correctly committed");
     }
@@ -332,6 +350,7 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             }
 
             //Since this point the admin is logged in
+            mongomanager = new MongoDBManager();
 
             do {}
             while(handleRequest()); //handle client requests until a checkout
@@ -391,6 +410,8 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
     public Admin_Protocol_Server(int port, String username, String password) {
         this.port = port;
         this.server = getServerSocket();
+        mongomanager = null;
+        //don't keep a neo4j connection always open as only one command interacts with neo4j
         setCredentials(username,password);
         this.AdminIsChecked = false;
         newListener();
@@ -432,6 +453,8 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
      * Close a session with an admin after the checkout.
      */
     synchronized private void releaseAdmin() {
+        mongomanager.close();
+        mongomanager = null; //mongo manager instance is kept alive for the duration of the connection
         closeSession();
         AdminIsChecked = false;
     }

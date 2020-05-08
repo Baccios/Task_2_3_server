@@ -11,8 +11,8 @@ public class Start {
         MongoDBManager mongomanager = new MongoDBManager();
         mongomanager.openConnection();
 
-
-        neomanager.update(mongomanager.getUpdatePacket());
+        //neomanager.update(mongomanager.getUpdatePacket());
+        mongomanager.close();
         neomanager.close();
 
         /*

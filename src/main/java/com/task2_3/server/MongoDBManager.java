@@ -1,7 +1,9 @@
 package com.task2_3.server;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.client.*;
 import com.mongodb.client.model.*;
+import com.mongodb.client.result.DeleteResult;
 import org.bson.*;
 
 import java.util.*;
@@ -15,10 +17,10 @@ import static com.mongodb.client.model.Accumulators.*;
 //import static com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolver.iterator;
 
 /**
- * This class implements the handler for all interactions with MongoDB server.
+ * This class implements a thread safe handler for all interactions with MongoDB server.
  * Above all, it handles the MongoDB side of the update procedure through the beginUpdate() method.
  */
-public class MongoDBManager {
+public class MongoDBManager implements AutoCloseable{
     private MongoClient mongoClient;
 
     private HashMap<String, Airport> airports; //all airports mapped by their IATA code
@@ -41,6 +43,7 @@ public class MongoDBManager {
                     new Document("$add", Arrays.asList(new Document("$multiply", Arrays.asList("$meanDelay", "$delayProb")),
                             new Document("$multiply", Arrays.asList("$cancProb", 100L))))))));
 
+
     /**
      * Open a connection with MongoDB server, Must be called at the beginning of the application
      */
@@ -55,7 +58,10 @@ public class MongoDBManager {
      * Close a MongoDBManager
      */
     public void close(){
-
+        mongoClient.close();
+        airports = null;
+        airlines = null;
+        routes = null;
     }
 
 
@@ -909,88 +915,153 @@ public class MongoDBManager {
             e.printStackTrace();
         }
     }
-    //efficient way of getting ranks by using a cursor
+
+    /* *************************************************************
+     * Methods from now on are an interface for the Admin protocol *
+     * *************************************************************/
+
     /**
-     * Fill all airports with the statistics regarding the map of the most served airlines.
-     * Initialize the stats field in each airport if it's null.
+     * Delete records belonging to the oldest 30 days in the database.
+     * @return The number of documents deleted. -1 in case of error.
      */
-    public void getRanking(){
+    public long deleteOldestMonth() {
+
+        //retrieving oldest date in the database
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        Date oldest = null;
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("date",
+                                new Document("$dateFromString",
+                                        new Document("dateString", "$FL_DATE")))), group("", min("minDate", "$date")))
+                ).cursor();
+        ) {
+            if(!cursor.hasNext()) {
+                System.err.println("Error: something went wrong while retrieving the oldest date in the database");
+                return -1;
+            }
+            Document doc = cursor.next();
+            oldest = doc.getDate("minDate");
+            if(oldest == null) {
+                System.err.println("Error: something went wrong while reading the oldest date in the database");
+                return -1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //at this point oldest is ready and initialized
+        long deletedCount = 0;
+        try {
+            DeleteResult res = collection.deleteMany(
+
+                lte("$expr", Arrays.asList(eq(
+                        "$subtract", Arrays.asList(eq("$dateFromString",
+                                    eq("dateString", "$FL_DATE")), oldest)),
+                        30L * 86400000L)
+                )
+
+            );
+            deletedCount = res.getDeletedCount();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return deletedCount;
+    }
+
+
+    /**
+     * Delete records belonging to the oldest 365 days in the database.
+     * @return The number of documents deleted. -1 in case of error.
+     */
+    public long deleteOldestYear() {
+
+        //retrieving oldest date in the database
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        Date oldest = null;
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("date",
+                                new Document("$dateFromString",
+                                        new Document("dateString", "$FL_DATE")))), group("", min("minDate", "$date")))
+                ).cursor();
+        ) {
+            if(!cursor.hasNext()) {
+                System.err.println("Error: something went wrong while retrieving the oldest date in the database");
+                return -1;
+            }
+            Document doc = cursor.next();
+            oldest = doc.getDate("minDate");
+            if(oldest == null) {
+                System.err.println("Error: something went wrong while reading the oldest date in the database");
+                return -1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //at this point oldest is ready and initialized
+        long deletedCount = 0;
+        try {
+            DeleteResult res = collection.deleteMany(
+
+                    lte("$expr", Arrays.asList(eq(
+                            "$subtract", Arrays.asList(eq("$dateFromString",
+                                    eq("dateString", "$FL_DATE")), oldest)),
+                            365L * 86400000L)
+                    )
+
+            );
+            deletedCount = res.getDeletedCount();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return deletedCount;
+    }
+
+    /**
+     * Get storage size occupied by the main collection of the database.
+     * @return the size of the database in bytes
+     */
+    public int getStorageSize() {
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        Document stats = database.runCommand(new Document("collStats", "us_flights"));
+        return stats.getInteger("size");
+    }
+
+    /**
+     * Delete all documents in the database whose date has an year previous than the one specified in the year parameter.
+     * @param year the year to use for comparisons
+     */
+    public void deleteUntilYear(int year) {
+        if(year < 1987 || year > Calendar.getInstance().get(Calendar.YEAR)) {
+            System.err.println("Year passed to deleteUntilYear(int year) is invalid");
+            return;
+        }
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
 
-
-        //if this solution is chosen delete RankClass and RankKey
-        try(MongoCursor<Document> cursor = collection.aggregate(
-                Arrays.asList(
-                        Aggregates.group(new Document("DEST_AIRPORT", "$DEST_AIRPORT.DEST_AIRPORT_ID").append("OP_UNIQUE_CARRIER", "$OP_UNIQUE_CARRIER"), Accumulators.sum("count", 1)/*, Accumulators.push("items", new Document("push", "$$ROOT"))*/),
-                        Aggregates.sort(orderBy(ascending("_id.DEST_AIRPORT"), descending("count")))
+        try {
+            collection.deleteMany(
+                lte("$expr",
+                        Arrays.asList(
+                                eq("$year",
+                                        eq("$dateFromString",
+                                                eq("dateString", "$FL_DATE")
+                                        )
+                                ),
+                                year
                         )
-             ).iterator())
-        {
-            Document doc;
-            Document id;
-            int rank = 1;
-            int current_airport = 0;
-
-            while (cursor.hasNext()) {
-                doc = (Document) cursor.next();
-                id = (Document) doc.get("_id");
-
-                String ind_carrier = id.getString("OP_UNIQUE_CARRIER" );
-                int ind_airport = id.getInteger("DEST_AIRPORT" );
-                rank++;
-                if(current_airport != ind_airport) {
-                    rank = 1;
-                    current_airport = ind_airport;
-                }
-                System.out.println(ind_airport + "              " + ind_carrier + "            " + doc.getInteger("count") + "          " + rank);
-            }
-        }catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-
-        /*try(MongoCursor<Document> cursor = collection.find().sort(orderBy(ascending("DEST_AIRPORT.DEST_AIRPORT_ID", "OP_UNIQUE_CARRIER"))).projection(include("DEST_AIRPORT.DEST_AIRPORT_ID","OP_UNIQUE_CARRIER")).iterator()) {
-            Document doc = cursor.next();
-            Document airport = (Document) doc.get("DEST_AIRPORT");
-
-            int current_airport = airport.getInteger("DEST_AIRPORT_ID");
-            String current_carrier = doc.getString("OP_UNIQUE_CARRIER");
-            int num_flight = 1;
-
-            Vector<RankClass> rank_arr = new Vector<>();
-
-            while (cursor.hasNext()) {
-                doc = cursor.next();
-                String ind_carrier = doc.getString("OP_UNIQUE_CARRIER");
-                airport = (Document) doc.get("DEST_AIRPORT");
-                int ind_airport = airport.getInteger("DEST_AIRPORT_ID");
-
-                if(ind_airport != current_airport || !ind_carrier.equals(current_carrier)){
-                    //ranking.put(new RankKey(current_airport, current_carrier), rank);
-
-                    rank_arr.add(new RankClass(current_carrier, RankClass.last_rank, num_flight));
-                    ranking.put(current_airport, rank_arr);
-
-                    num_flight = 0;
-                    current_airport = ind_airport;
-                    current_carrier =  ind_carrier;
-                }
-                rank++;
-            }
-            //add last one
-            ranking.put(new RankKey(current_airport, current_carrier), rank);
-
-            for(Map.Entry<RankKey, Integer> entry: ranking.entrySet()){
-                int airport_key = entry.getKey().getAirport();
-                String carrier_key = entry.getKey().getCarrier();
-                int rank_val = entry.getValue();
-                System.out.println("aereoport: "+ airport_key + " carrier: "+carrier_key+" numero voli: "+rank_val);
-            }
+                )
+            );
         } catch (Exception e) {
-            throw new RuntimeException(e);
-        }*/
+            e.printStackTrace();
+        }
     }
+
+
 
 }
 
