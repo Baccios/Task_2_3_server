@@ -72,6 +72,12 @@ public class PasswordManager {
         return null;
     }
 
+    /**
+     * Set new credentials for the admin
+     * @param username the new username
+     * @param password the new password
+     * @return true if credentials were correctly updated
+     */
     public boolean setCredentials(String username, String password) {
         File pswStore = new File("./keychain/admins");
         if(!pswStore.canWrite()) {
