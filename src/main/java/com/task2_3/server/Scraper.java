@@ -11,6 +11,8 @@ import java.util.List;
 import com.opencsv.CSVWriter;
 import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.core.ZipFile;
+
+import javax.swing.text.Document;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
@@ -43,11 +45,12 @@ public class Scraper {
     }
 
     public void testScraper() throws Exception {
-        lastUpdatedYear= "2019";
-        lastUpdatedMonth = 1;
-        getZipFile();
-        unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_1_2019.zip");
-        cleanDownloads("report_1_2019.zip");
+       lastUpdatedYear= "2019";
+       lastUpdatedMonth = 1;
+       getZipFile();
+       unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_1_2019.zip");
+       cleanDownloads("report_1_2019.zip");
+       elaborateDocument("On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2019_1");
     }
 
     public void startScraping() throws Exception {
@@ -174,18 +177,21 @@ public class Scraper {
             System.err.format("Something went wrong during the scraping of the csv file");
             e.printStackTrace();
         }
-
-        insertDocument(documentName+"_SCRAPED.csv");
+        System.out.println("Parsing of "+documentName+".csv completed");
+        System.out.println("Inserting "+documentName+"_SCRAPED.csv into database");
+        //insertDocument(documentName+"_SCRAPED.csv");
     }
 
 
     private void insertDocument(String csvFile) {
-        //TODO insert document inside of MongoDB
+        MongoDBManager MongoClient = new MongoDBManager();
+        MongoClient.openConnection();
     }
 
 
     public void periodicScraping() throws Exception {
         //TODO update last year and last month based on mongo values
+
         //TODO check if the website has new entries
 
         //if yes update month and year
@@ -269,18 +275,24 @@ public class Scraper {
         try {
             getZipFile();
             unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip");
-            //TODO inserire un semaforo per non eliminare prima di aver finito di estrarre
-            //------------> cleanDownloads("report_"+requestedMonth+"_"+requestedYear+".zip");
         } catch (Exception e) {
             e.printStackTrace();
             System.err.format("Something went wrong during the retrieve of the file from the website");
             return;
         }
 
-        //Removes readme file
-        //TODO inserire semaforo prima di eliminare readme
-        //---------> cleanTrash();
+        // remove useless files
+        try {
+            //removes zip file
+            cleanDownloads("report_" + requestedMonth + "_" + requestedYear + ".zip");
+            //removes readme
+            cleanTrash();
+        } catch (Exception e){
+            System.err.format("Something went wrong when trying to delete trash files");
+        }
+
         String documentName = "On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_"+requestedYear+"_"+requestedMonth;
+
         // Elaborates the raw data in a MongoDB support db and insert it in the final DB
         elaborateDocument(documentName);
 
