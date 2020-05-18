@@ -38,6 +38,7 @@ public class Scraper {
         months[11] = "November";
         months[12] = "December";
 
+        //TODO usare query su mongo
         int startingYear = 2018;
 
         lastUpdatedMonth = 1;
@@ -47,9 +48,9 @@ public class Scraper {
     public void testScraper() throws Exception {
        lastUpdatedYear= "2019";
        lastUpdatedMonth = 1;
-       getZipFile();
-       unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_1_2019.zip");
-       cleanDownloads("report_1_2019.zip");
+      // getZipFile();
+     //  unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_1_2019.zip");
+      // cleanDownloads("report_1_2019.zip");
        elaborateDocument("On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2019_1");
     }
 
@@ -158,7 +159,11 @@ public class Scraper {
                     origin_iata = flightInfo[14];
                     origin_airport_id = flightInfo[12];
                     origin_city_name = flightInfo[15];
-                    origin_state_nm = flightInfo[18];
+                    origin_state_nm = flightInfo[19];
+
+                    System.out.println("origin state name="+origin_state_nm);
+
+                    //TODO farla manuale
 
                     data.add(new String[]{quarter, fl_date, op_unique_carrier, crs_dep_time, dep_time, dep_delay, dep_del15,
                             crs_arr_time, arr_time, arr_delay, arr_del15, cancelled, cancellation_code, crs_elapsed_time, actual_elapsed_time,
@@ -214,8 +219,9 @@ public class Scraper {
 
         System.out.println("Requested URL: "+preparedUrl);
         System.out.println("Attempting download");
-        new FileOutputStream(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip").getChannel().transferFrom(Channels.newChannel(new URL(preparedUrl).openStream()), 0, Long.MAX_VALUE);
-
+        FileOutputStream download = new FileOutputStream(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip");
+        download.getChannel().transferFrom(Channels.newChannel(new URL(preparedUrl).openStream()), 0, Long.MAX_VALUE);
+        download.close();
         System.out.println("Download finished");
         System.out.println("New report added: "+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip");
     }
