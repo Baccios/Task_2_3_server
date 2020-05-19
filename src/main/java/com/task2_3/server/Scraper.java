@@ -4,21 +4,15 @@ import java.io.*;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.*;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
 
 import com.opencsv.CSVReader;
-import com.opencsv.CSVWriter;
 import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.core.ZipFile;
 import org.bson.types.ObjectId;
 
 import org.bson.Document;
-import java.io.BufferedReader;
-import java.io.FileReader;
 
-import static java.util.Arrays.asList;
 
 
 public class Scraper {
@@ -76,57 +70,63 @@ public class Scraper {
 
     }
 
+    double ParseDouble(String strNumber) {
+        if (strNumber != null && strNumber.length() > 0) {
+            try {
+                return Double.parseDouble(strNumber);
+            } catch(Exception e) {
+                return -1;   // or some value to mark this field is wrong. or make a function validates field first ...
+            }
+        }
+        else return 0;
+    }
+
+    int ParseInteger(String strNumber) {
+        if (strNumber != null && strNumber.length() > 0) {
+            try {
+                return Integer.parseInt(strNumber);
+            } catch(Exception e) {
+                return -1;   // or some value to mark this field is wrong. or make a function validates field first ...
+            }
+        }
+        else return 0;
+    }
+
     private void elaborateDocument(String documentName) {
 
         //files info
         String filePathToScrape = System.getProperty("user.dir") + "/scraperFiles/" + documentName + ".csv";
-        String filePath = System.getProperty("user.dir") + "/scraperFiles/" + documentName + "_SCRAPED.csv";
-
-        //creates new csv file
-        File file = new File(filePath);
 
         try {
 
-
-
-            // create FileWriter object with file as parameter
-            Writer writer = Files.newBufferedWriter(Paths.get(filePath));
-            CSVWriter csvWriter = new CSVWriter(writer,
-                    CSVWriter.DEFAULT_SEPARATOR,
-                    CSVWriter.NO_QUOTE_CHARACTER,
-                    CSVWriter.NO_ESCAPE_CHARACTER,
-                    CSVWriter.DEFAULT_LINE_END);
-
-
-
             //list of data to scrape
-            String quarter;
+            int quarter;
             String fl_date;
             String op_unique_carrier;
-            String crs_dep_time;
-            String dep_time;
-            String dep_delay;
-            String dep_del15;
-            String crs_arr_time;
-            String arr_time;
-            String arr_delay;
-            String arr_del15;
-            String cancelled;
+            int crs_dep_time;
+            int dep_time;
+            Double dep_delay;
+            Double dep_del15;
+            int crs_arr_time;
+            int arr_time;
+            Double arr_delay;
+            Double arr_del15;
+            int cancelled;
             String cancellation_code;
-            String crs_elapsed_time;
-            String actual_elapsed_time;
-            String distance;
-            String carrier_delay;
-            String weather_delay;
-            String nas_delay;
-            String security_delay;
-            String late_aircraft_delay;
+            int crs_elapsed_time;
+            int actual_elapsed_time;
+            int distance;
+            Double carrier_delay;
+            int weather_delay;
+            int nas_delay;
+            int security_delay;
+            int late_aircraft_delay;
             String dest_iata;
-            String dest_airport_id;
+            int dest_airport_id;
             String dest_city_name;
             String dest_state_nm;
             String origin_iata;
-            String origin_airport_id;
+            int origin_airport_id;
             String origin_city_name;
             String origin_state_nm;
 
@@ -136,91 +136,74 @@ public class Scraper {
                 //write headers with quotes
                 String[] flightInfo;
                 flightInfo = csvReader.readNext();
-                quarter = flightInfo[1];
-                fl_date = flightInfo[5];
-                op_unique_carrier = flightInfo[8];
-                crs_dep_time = flightInfo[29];
-                dep_time = flightInfo[30];
-                dep_delay = flightInfo[31];
-                dep_del15 = flightInfo[33];
-                crs_arr_time = flightInfo[40];
-                arr_time = flightInfo[41];
-                arr_delay = flightInfo[42];
-                arr_del15 = flightInfo[44];
-                cancelled = flightInfo[47];
-                cancellation_code = flightInfo[48];
-                crs_elapsed_time = flightInfo[50];
-                actual_elapsed_time = flightInfo[51];
-                distance = flightInfo[54];
-                carrier_delay = flightInfo[56];
-                weather_delay = flightInfo[57];
-                nas_delay = flightInfo[58];
-                security_delay = flightInfo[59];
-                late_aircraft_delay = flightInfo[60];
-                dest_iata = flightInfo[23];
-                dest_airport_id = flightInfo[20];
-                dest_city_name = flightInfo[24];
-                dest_state_nm = flightInfo[27];
-                origin_iata = flightInfo[14];
-                origin_airport_id = flightInfo[12];
-                origin_city_name = flightInfo[15];
-                origin_state_nm = flightInfo[19];
-
-                csvWriter.writeNext(new String[]{quarter, fl_date, op_unique_carrier, crs_dep_time, dep_time, dep_delay, dep_del15,
-                        crs_arr_time, arr_time, arr_delay, arr_del15, cancelled, cancellation_code, crs_elapsed_time, actual_elapsed_time,
-                        distance, carrier_delay, weather_delay, nas_delay, security_delay, late_aircraft_delay, dest_iata, dest_airport_id,
-                        dest_city_name, dest_state_nm, origin_iata, origin_airport_id, origin_city_name, origin_state_nm});
 
                 while ((flightInfo = csvReader.readNext()) != null) {
 
-                    quarter = flightInfo[1];
-                    fl_date = "\""+flightInfo[5]+"\"";
+                    quarter = ParseInteger(flightInfo[1]);
+                    fl_date = flightInfo[5];
                     op_unique_carrier = flightInfo[8];
-                    crs_dep_time = flightInfo[29];
-                    dep_time = flightInfo[30];
-                    dep_delay = flightInfo[31].replaceAll("-", "");
-                    dep_del15 = flightInfo[33];
-                    crs_arr_time = flightInfo[40];
-                    arr_time = flightInfo[41];
-                    arr_delay = flightInfo[42].replaceAll("-", "");
-                    arr_del15 = flightInfo[44];
-                    cancelled = flightInfo[47];
-                    cancellation_code = "\""+flightInfo[48]+"\"";
-                    crs_elapsed_time = flightInfo[50];
-                    actual_elapsed_time = flightInfo[51];
-                    distance = flightInfo[54];
-                    carrier_delay = flightInfo[56];
-                    weather_delay = flightInfo[57];
-                    nas_delay = flightInfo[58];
-                    security_delay = flightInfo[59];
-                    late_aircraft_delay = flightInfo[60];
-                    dest_iata = "\""+flightInfo[23]+"\"";
-                    dest_airport_id = flightInfo[20];
-                    dest_city_name = "\""+flightInfo[24]+"\"";
-                    dest_state_nm = "\""+flightInfo[27]+"\"";
-                    origin_iata = "\""+flightInfo[14]+"\"";
-                    origin_airport_id = flightInfo[12];
-                    origin_city_name = "\""+flightInfo[15]+"\"";
-                    origin_state_nm = "\""+flightInfo[18]+"\"";
+                    crs_dep_time = ParseInteger(flightInfo[29]);
+                    dep_time = ParseInteger(flightInfo[30]);
+                    dep_delay = ParseDouble(flightInfo[31].replaceAll("-", ""));
+                    dep_del15 = ParseDouble(flightInfo[33]);
+                    crs_arr_time = ParseInteger(flightInfo[40]);
+                    arr_time = ParseInteger(flightInfo[41]);
+                    arr_delay = ParseDouble(flightInfo[42].replaceAll("-", ""));
+                    arr_del15 = ParseDouble(flightInfo[44]);
+                    cancelled = (int)(ParseDouble(flightInfo[47]));
+                    cancellation_code = flightInfo[48];
+                    crs_elapsed_time = (int)(ParseDouble(flightInfo[50]));
+                    actual_elapsed_time = (int)(ParseDouble(flightInfo[51]));
+                    distance = (int)(ParseDouble(flightInfo[54]));
+                    carrier_delay = ParseDouble(flightInfo[56]);
+                    weather_delay = (int)(ParseDouble(flightInfo[57]));
+                    nas_delay = (int)(ParseDouble(flightInfo[58]));
+                    security_delay = (int)(ParseDouble(flightInfo[59]));
+                    late_aircraft_delay = (int)(ParseDouble(flightInfo[60]));
+                    dest_iata = flightInfo[23];
+                    dest_airport_id = ParseInteger(flightInfo[20]);
+                    dest_city_name = flightInfo[24];
+                    dest_state_nm = flightInfo[27];
+                    origin_iata = flightInfo[14];
+                    origin_airport_id = ParseInteger(flightInfo[12]);
+                    origin_city_name = flightInfo[15];
+                    origin_state_nm = flightInfo[18];
 
-                    //System.out.println("origin state name="+origin_state_nm);
+                    Document flightDocument = new Document("_id", new ObjectId());
+                    flightDocument.append("QUARTER", quarter)
+                            .append("FL_DATE",fl_date)
+                            .append("OP_UNIQUE_CARRIER",op_unique_carrier)
+                            .append("CRS_DEP_TIME",crs_dep_time)
+                            .append("DEP_TIME",dep_time)
+                            .append("DEP_DELAY",dep_delay)
+                            .append("DEP_DEL15",dep_del15)
+                            .append("CRS_ARR_TIME",crs_arr_time)
+                            .append("ARR_TIME",arr_time)
+                            .append("ARR_DELAY",arr_delay)
+                            .append("ARR_DEL15",arr_del15)
+                            .append("CANCELLED",cancelled)
+                            .append("CANCELLATION_CODE",cancellation_code)
+                            .append("CRS_ELAPSED_TIME",crs_elapsed_time)
+                            .append("ACTUAL_ELAPSED_TIME",actual_elapsed_time)
+                            .append("DISTANCE",distance)
+                            .append("CARRIER_DELAY",carrier_delay)
+                            .append("WEATHER_DELAY",weather_delay)
+                            .append("NAS_DELAY",nas_delay)
+                            .append("SECURITY_DELAY",security_delay)
+                            .append("LATE_AIRCRAFT_DELAY",late_aircraft_delay)
+                            .append("DEST_AIRPORT", (new Document("DEST_IATA", dest_iata)
+                                                        .append("DEST_AIRPORT_ID",dest_airport_id)
+                                                        .append("DEST_CITY_NAME",dest_city_name)
+                                                        .append("DEST_STATE_NM",dest_state_nm)))
+                            .append("ORIGIN_AIRPORT", (new Document("ORIGIN_IATA", origin_iata)
+                                    .append("ORIGIN_AIRPORT_ID",origin_airport_id)
+                                    .append("ORIGIN_CITY_NAME",origin_city_name)
+                                    .append("ORIGIN_STATE_NM",origin_state_nm)));
 
-                    Document student = new Document("_id", new ObjectId());
-                    student.append("QUARTER", 10000d)
-                            .append("class_id", 1d)
-                            .append("scores", asList(new Document("type", "exam").append("score", rand.nextDouble() * 100),
-                                    new Document("type", "quiz").append("score", rand.nextDouble() * 100),
-                                    new Document("type", "homework").append("score", rand.nextDouble() * 100),
-                                    new Document("type", "homework").append("score", rand.nextDouble() * 100)));
+                    System.out.println(flightDocument.toJson());
 
-                    csvWriter.writeNext(new String[]{quarter, fl_date, op_unique_carrier, crs_dep_time, dep_time, dep_delay, dep_del15,
-                            crs_arr_time, arr_time, arr_delay, arr_del15, cancelled, cancellation_code, crs_elapsed_time, actual_elapsed_time,
-                            distance, carrier_delay, weather_delay, nas_delay, security_delay, late_aircraft_delay, dest_iata, dest_airport_id,
-                            dest_city_name, dest_state_nm, origin_iata, origin_airport_id, origin_city_name, origin_state_nm});
                 }
 
-                // closing writer connection
-                writer.close();
             }
         }
 
@@ -228,9 +211,6 @@ public class Scraper {
             System.err.format("Something went wrong during the scraping of the csv file");
             e.printStackTrace();
         }
-        System.out.println("Parsing of "+documentName+".csv completed");
-        System.out.println("Inserting "+documentName+"_SCRAPED.csv into database");
-        //insertDocument(documentName+"_SCRAPED.csv");
     }
 
 
