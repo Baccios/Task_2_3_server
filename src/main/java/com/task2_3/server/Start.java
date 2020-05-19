@@ -5,7 +5,10 @@ import java.util.Timer;
 
 public class Start {
     //public static Updater updater;
-    public static void main (String[] args) {
+    public static void main (String[] args) throws Exception {
+        Scraper test = new Scraper();
+        test.testScraper();
+        /*
         //Admin_Protocol_Server myServer = new Admin_Protocol_Server(2020, "admin","ciaccio");
         Neo4jDBManager neomanager = new Neo4jDBManager("bolt://172.16.1.15:7687", "neo4j", "root");
         MongoDBManager mongomanager = new MongoDBManager();

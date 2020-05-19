@@ -8,13 +8,17 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.core.ZipFile;
+import org.bson.types.ObjectId;
 
-import javax.swing.text.Document;
+import org.bson.Document;
 import java.io.BufferedReader;
 import java.io.FileReader;
+
+import static java.util.Arrays.asList;
 
 
 public class Scraper {
@@ -77,21 +81,23 @@ public class Scraper {
         //files info
         String filePathToScrape = System.getProperty("user.dir") + "/scraperFiles/" + documentName + ".csv";
         String filePath = System.getProperty("user.dir") + "/scraperFiles/" + documentName + "_SCRAPED.csv";
-        String line = "";
-        String cvsSplitBy = ",";
 
         //creates new csv file
         File file = new File(filePath);
 
         try {
+
+
+
             // create FileWriter object with file as parameter
-            FileWriter outputfile = new FileWriter(file);
+            Writer writer = Files.newBufferedWriter(Paths.get(filePath));
+            CSVWriter csvWriter = new CSVWriter(writer,
+                    CSVWriter.DEFAULT_SEPARATOR,
+                    CSVWriter.NO_QUOTE_CHARACTER,
+                    CSVWriter.NO_ESCAPE_CHARACTER,
+                    CSVWriter.DEFAULT_LINE_END);
 
-            // create CSVWriter object filewriter object as parameter
-            CSVWriter writer = new CSVWriter(outputfile);
 
-            // create a List which contains String array
-            List<String[]> data = new ArrayList<String[]>();
 
             //list of data to scrape
             String quarter;
@@ -124,15 +130,51 @@ public class Scraper {
             String origin_city_name;
             String origin_state_nm;
 
-            try (BufferedReader br = new BufferedReader(new FileReader(filePathToScrape))) {
+            try ( Reader reader = Files.newBufferedReader(Paths.get(filePathToScrape));
+                  CSVReader csvReader = new CSVReader(reader);)
+            {
+                //write headers with quotes
+                String[] flightInfo;
+                flightInfo = csvReader.readNext();
+                quarter = flightInfo[1];
+                fl_date = flightInfo[5];
+                op_unique_carrier = flightInfo[8];
+                crs_dep_time = flightInfo[29];
+                dep_time = flightInfo[30];
+                dep_delay = flightInfo[31];
+                dep_del15 = flightInfo[33];
+                crs_arr_time = flightInfo[40];
+                arr_time = flightInfo[41];
+                arr_delay = flightInfo[42];
+                arr_del15 = flightInfo[44];
+                cancelled = flightInfo[47];
+                cancellation_code = flightInfo[48];
+                crs_elapsed_time = flightInfo[50];
+                actual_elapsed_time = flightInfo[51];
+                distance = flightInfo[54];
+                carrier_delay = flightInfo[56];
+                weather_delay = flightInfo[57];
+                nas_delay = flightInfo[58];
+                security_delay = flightInfo[59];
+                late_aircraft_delay = flightInfo[60];
+                dest_iata = flightInfo[23];
+                dest_airport_id = flightInfo[20];
+                dest_city_name = flightInfo[24];
+                dest_state_nm = flightInfo[27];
+                origin_iata = flightInfo[14];
+                origin_airport_id = flightInfo[12];
+                origin_city_name = flightInfo[15];
+                origin_state_nm = flightInfo[19];
 
-                while ((line = br.readLine()) != null) {
+                csvWriter.writeNext(new String[]{quarter, fl_date, op_unique_carrier, crs_dep_time, dep_time, dep_delay, dep_del15,
+                        crs_arr_time, arr_time, arr_delay, arr_del15, cancelled, cancellation_code, crs_elapsed_time, actual_elapsed_time,
+                        distance, carrier_delay, weather_delay, nas_delay, security_delay, late_aircraft_delay, dest_iata, dest_airport_id,
+                        dest_city_name, dest_state_nm, origin_iata, origin_airport_id, origin_city_name, origin_state_nm});
 
-                    // use comma as separator
-                    String[] flightInfo = line.split(cvsSplitBy);
+                while ((flightInfo = csvReader.readNext()) != null) {
 
                     quarter = flightInfo[1];
-                    fl_date = flightInfo[5];
+                    fl_date = "\""+flightInfo[5]+"\"";
                     op_unique_carrier = flightInfo[8];
                     crs_dep_time = flightInfo[29];
                     dep_time = flightInfo[30];
@@ -140,10 +182,10 @@ public class Scraper {
                     dep_del15 = flightInfo[33];
                     crs_arr_time = flightInfo[40];
                     arr_time = flightInfo[41];
-                    arr_delay = flightInfo[42];
+                    arr_delay = flightInfo[42].replaceAll("-", "");
                     arr_del15 = flightInfo[44];
                     cancelled = flightInfo[47];
-                    cancellation_code = flightInfo[48];
+                    cancellation_code = "\""+flightInfo[48]+"\"";
                     crs_elapsed_time = flightInfo[50];
                     actual_elapsed_time = flightInfo[51];
                     distance = flightInfo[54];
@@ -152,26 +194,30 @@ public class Scraper {
                     nas_delay = flightInfo[58];
                     security_delay = flightInfo[59];
                     late_aircraft_delay = flightInfo[60];
-                    dest_iata = flightInfo[23];
+                    dest_iata = "\""+flightInfo[23]+"\"";
                     dest_airport_id = flightInfo[20];
-                    dest_city_name = flightInfo[24];
-                    dest_state_nm = flightInfo[27];
-                    origin_iata = flightInfo[14];
+                    dest_city_name = "\""+flightInfo[24]+"\"";
+                    dest_state_nm = "\""+flightInfo[27]+"\"";
+                    origin_iata = "\""+flightInfo[14]+"\"";
                     origin_airport_id = flightInfo[12];
-                    origin_city_name = flightInfo[15];
-                    origin_state_nm = flightInfo[19];
+                    origin_city_name = "\""+flightInfo[15]+"\"";
+                    origin_state_nm = "\""+flightInfo[18]+"\"";
 
-                    System.out.println("origin state name="+origin_state_nm);
+                    //System.out.println("origin state name="+origin_state_nm);
 
-                    //TODO farla manuale
+                    Document student = new Document("_id", new ObjectId());
+                    student.append("QUARTER", 10000d)
+                            .append("class_id", 1d)
+                            .append("scores", asList(new Document("type", "exam").append("score", rand.nextDouble() * 100),
+                                    new Document("type", "quiz").append("score", rand.nextDouble() * 100),
+                                    new Document("type", "homework").append("score", rand.nextDouble() * 100),
+                                    new Document("type", "homework").append("score", rand.nextDouble() * 100)));
 
-                    data.add(new String[]{quarter, fl_date, op_unique_carrier, crs_dep_time, dep_time, dep_delay, dep_del15,
+                    csvWriter.writeNext(new String[]{quarter, fl_date, op_unique_carrier, crs_dep_time, dep_time, dep_delay, dep_del15,
                             crs_arr_time, arr_time, arr_delay, arr_del15, cancelled, cancellation_code, crs_elapsed_time, actual_elapsed_time,
                             distance, carrier_delay, weather_delay, nas_delay, security_delay, late_aircraft_delay, dest_iata, dest_airport_id,
                             dest_city_name, dest_state_nm, origin_iata, origin_airport_id, origin_city_name, origin_state_nm});
                 }
-
-                writer.writeAll(data);
 
                 // closing writer connection
                 writer.close();
