@@ -51,8 +51,8 @@ public class Scraper {
 
     public void testScraper() throws Exception {
        lastUpdatedYear= "2020";
-       lastUpdatedMonth = 8;
-       periodicScraping();
+       lastUpdatedMonth = 1;
+       //periodicScraping();
        scrape();
     }
 
@@ -238,7 +238,7 @@ public class Scraper {
                     //use this to debug
                     //System.out.println(flightDocument.toJson());
 
-                    pushDocument(flightDocument);
+                    //pushDocument(flightDocument);
                 }
 
             }
@@ -292,7 +292,7 @@ public class Scraper {
         }
     }
 
-    private void cleanDownloads(String fileName) throws IOException {
+    private void cleanDownloads(String fileName){
         String trashFile = System.getProperty("user.dir")+"/scraperDownloads/"+fileName;
         Path trashPath = Paths.get(trashFile);
         try {
@@ -321,6 +321,22 @@ public class Scraper {
             System.err.println(x);
         }
     }
+
+    private void cleanCsv(String fileName){
+        String trashFile = System.getProperty("user.dir")+"/scraperFiles/"+fileName;
+        Path trashPath = Paths.get(trashFile);
+        try {
+            Files.delete(trashPath);
+        } catch (NoSuchFileException x) {
+            System.err.format("%s: no such" + " file or directory%n", trashPath);
+        } catch (DirectoryNotEmptyException x) {
+            System.err.format("%s not empty%n", trashPath);
+        } catch (IOException x) {
+            //File permission problems are caught here
+            System.err.println(x);
+        }
+    }
+
 
 
     private void scrape() {
@@ -351,7 +367,9 @@ public class Scraper {
 
         // Elaborates the raw data in a MongoDB support db and insert it in the final DB
         elaborateDocument(documentName);
+        cleanCsv(documentName+".csv");
 
     }
+
 
 }
