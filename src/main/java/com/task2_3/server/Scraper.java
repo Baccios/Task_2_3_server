@@ -1,6 +1,7 @@
 package com.task2_3.server;
 
 import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.*;
@@ -12,8 +13,6 @@ import net.lingala.zip4j.core.ZipFile;
 import org.bson.types.ObjectId;
 
 import org.bson.Document;
-
-
 
 public class Scraper {
     private String months [];
@@ -37,20 +36,78 @@ public class Scraper {
         months[12] = "December";
 
         //TODO usare query su mongo
-        int startingYear = 2018;
+        //updateScraperViaMongo();
 
-        lastUpdatedMonth = 1;
-        lastUpdatedYear = Integer.toString(startingYear);
     }
+
+    private void updateScraperViaMongo(){
+        MongoDBManager MongoDB = new MongoDBManager();
+        int yearToUse = MongoDB.retrieveLastUpdatedYear();
+        int monthToUse = MongoDB.retrieveLastUpdatedMonth();
+        updateScraperState(monthToUse,yearToUse);
+    }
+
+    /* Disables comment on the part of the code you want to test! */
 
     public void testScraper() throws Exception {
-       lastUpdatedYear= "2019";
-       lastUpdatedMonth = 1;
-      // getZipFile();
-     //  unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_1_2019.zip");
-      // cleanDownloads("report_1_2019.zip");
-       elaborateDocument("On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2019_1");
+       lastUpdatedYear= "2020";
+       lastUpdatedMonth = 8;
+       periodicScraping();
+       scrape();
     }
+
+    //utility function in order to parse also empty strings (returns 0 in that case)
+
+    double ParseDouble(String strNumber) {
+        if (strNumber != null && strNumber.length() > 0) {
+            try {
+                return Double.parseDouble(strNumber);
+            } catch(Exception e) {
+                return -1;   // or some value to mark this field is wrong. or make a function validates field first ...
+            }
+        }
+        else return 0;
+    }
+
+    //utility function in order to parse also empty strings (returns 0 in that case)
+
+    int ParseInteger(String strNumber) {
+        if (strNumber != null && strNumber.length() > 0) {
+            try {
+                return Integer.parseInt(strNumber);
+            } catch(Exception e) {
+                return -1;   // or some value to mark this field is wrong. or make a function validates field first ...
+            }
+        }
+        else return 0;
+    }
+
+    //return true if scraping was possible, returns false if zip file wasn't available for download
+
+    public boolean periodicScraping() throws Exception {
+
+        updateScraperViaMongo();
+
+        //check if zip is available
+        String requestedYear = lastUpdatedYear;
+        String requestedMonth = Integer.toString(lastUpdatedMonth);
+        String preparedUrl = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_"+requestedYear+"_"+requestedMonth+".zip";
+        URL u = new URL (preparedUrl);
+        HttpURLConnection huc =  ( HttpURLConnection )  u.openConnection ();
+        huc.setRequestMethod ("GET");  //OR  huc.setRequestMethod ("HEAD");
+        huc.connect () ;
+        int code = huc.getResponseCode() ;
+
+        if (code==404){
+            System.out.println("Download still not available");
+            return false;
+        }
+        else {
+            scrape();
+            return true;
+        }
+    }
+
 
     public void startScraping() throws Exception {
         //This method should be used to initialize the system, after that use the "periodicScraping" method
@@ -70,27 +127,6 @@ public class Scraper {
 
     }
 
-    double ParseDouble(String strNumber) {
-        if (strNumber != null && strNumber.length() > 0) {
-            try {
-                return Double.parseDouble(strNumber);
-            } catch(Exception e) {
-                return -1;   // or some value to mark this field is wrong. or make a function validates field first ...
-            }
-        }
-        else return 0;
-    }
-
-    int ParseInteger(String strNumber) {
-        if (strNumber != null && strNumber.length() > 0) {
-            try {
-                return Integer.parseInt(strNumber);
-            } catch(Exception e) {
-                return -1;   // or some value to mark this field is wrong. or make a function validates field first ...
-            }
-        }
-        else return 0;
-    }
 
     private void elaborateDocument(String documentName) {
 
@@ -131,8 +167,7 @@ public class Scraper {
             String origin_state_nm;
 
             try ( Reader reader = Files.newBufferedReader(Paths.get(filePathToScrape));
-                  CSVReader csvReader = new CSVReader(reader);)
-            {
+                  CSVReader csvReader = new CSVReader(reader);) {
                 //write headers with quotes
                 String[] flightInfo;
                 flightInfo = csvReader.readNext();
@@ -150,16 +185,16 @@ public class Scraper {
                     arr_time = ParseInteger(flightInfo[41]);
                     arr_delay = ParseDouble(flightInfo[42].replaceAll("-", ""));
                     arr_del15 = ParseDouble(flightInfo[44]);
-                    cancelled = (int)(ParseDouble(flightInfo[47]));
+                    cancelled = (int) (ParseDouble(flightInfo[47]));
                     cancellation_code = flightInfo[48];
-                    crs_elapsed_time = (int)(ParseDouble(flightInfo[50]));
-                    actual_elapsed_time = (int)(ParseDouble(flightInfo[51]));
-                    distance = (int)(ParseDouble(flightInfo[54]));
+                    crs_elapsed_time = (int) (ParseDouble(flightInfo[50]));
+                    actual_elapsed_time = (int) (ParseDouble(flightInfo[51]));
+                    distance = (int) (ParseDouble(flightInfo[54]));
                     carrier_delay = ParseDouble(flightInfo[56]);
-                    weather_delay = (int)(ParseDouble(flightInfo[57]));
-                    nas_delay = (int)(ParseDouble(flightInfo[58]));
-                    security_delay = (int)(ParseDouble(flightInfo[59]));
-                    late_aircraft_delay = (int)(ParseDouble(flightInfo[60]));
+                    weather_delay = (int) (ParseDouble(flightInfo[57]));
+                    nas_delay = (int) (ParseDouble(flightInfo[58]));
+                    security_delay = (int) (ParseDouble(flightInfo[59]));
+                    late_aircraft_delay = (int) (ParseDouble(flightInfo[60]));
                     dest_iata = flightInfo[23];
                     dest_airport_id = ParseInteger(flightInfo[20]);
                     dest_city_name = flightInfo[24];
@@ -171,37 +206,39 @@ public class Scraper {
 
                     Document flightDocument = new Document("_id", new ObjectId());
                     flightDocument.append("QUARTER", quarter)
-                            .append("FL_DATE",fl_date)
-                            .append("OP_UNIQUE_CARRIER",op_unique_carrier)
-                            .append("CRS_DEP_TIME",crs_dep_time)
-                            .append("DEP_TIME",dep_time)
-                            .append("DEP_DELAY",dep_delay)
-                            .append("DEP_DEL15",dep_del15)
-                            .append("CRS_ARR_TIME",crs_arr_time)
-                            .append("ARR_TIME",arr_time)
-                            .append("ARR_DELAY",arr_delay)
-                            .append("ARR_DEL15",arr_del15)
-                            .append("CANCELLED",cancelled)
-                            .append("CANCELLATION_CODE",cancellation_code)
-                            .append("CRS_ELAPSED_TIME",crs_elapsed_time)
-                            .append("ACTUAL_ELAPSED_TIME",actual_elapsed_time)
-                            .append("DISTANCE",distance)
-                            .append("CARRIER_DELAY",carrier_delay)
-                            .append("WEATHER_DELAY",weather_delay)
-                            .append("NAS_DELAY",nas_delay)
-                            .append("SECURITY_DELAY",security_delay)
-                            .append("LATE_AIRCRAFT_DELAY",late_aircraft_delay)
+                            .append("FL_DATE", fl_date)
+                            .append("OP_UNIQUE_CARRIER", op_unique_carrier)
+                            .append("CRS_DEP_TIME", crs_dep_time)
+                            .append("DEP_TIME", dep_time)
+                            .append("DEP_DELAY", dep_delay)
+                            .append("DEP_DEL15", dep_del15)
+                            .append("CRS_ARR_TIME", crs_arr_time)
+                            .append("ARR_TIME", arr_time)
+                            .append("ARR_DELAY", arr_delay)
+                            .append("ARR_DEL15", arr_del15)
+                            .append("CANCELLED", cancelled)
+                            .append("CANCELLATION_CODE", cancellation_code)
+                            .append("CRS_ELAPSED_TIME", crs_elapsed_time)
+                            .append("ACTUAL_ELAPSED_TIME", actual_elapsed_time)
+                            .append("DISTANCE", distance)
+                            .append("CARRIER_DELAY", carrier_delay)
+                            .append("WEATHER_DELAY", weather_delay)
+                            .append("NAS_DELAY", nas_delay)
+                            .append("SECURITY_DELAY", security_delay)
+                            .append("LATE_AIRCRAFT_DELAY", late_aircraft_delay)
                             .append("DEST_AIRPORT", (new Document("DEST_IATA", dest_iata)
-                                                        .append("DEST_AIRPORT_ID",dest_airport_id)
-                                                        .append("DEST_CITY_NAME",dest_city_name)
-                                                        .append("DEST_STATE_NM",dest_state_nm)))
+                                    .append("DEST_AIRPORT_ID", dest_airport_id)
+                                    .append("DEST_CITY_NAME", dest_city_name)
+                                    .append("DEST_STATE_NM", dest_state_nm)))
                             .append("ORIGIN_AIRPORT", (new Document("ORIGIN_IATA", origin_iata)
-                                    .append("ORIGIN_AIRPORT_ID",origin_airport_id)
-                                    .append("ORIGIN_CITY_NAME",origin_city_name)
-                                    .append("ORIGIN_STATE_NM",origin_state_nm)));
+                                    .append("ORIGIN_AIRPORT_ID", origin_airport_id)
+                                    .append("ORIGIN_CITY_NAME", origin_city_name)
+                                    .append("ORIGIN_STATE_NM", origin_state_nm)));
 
-                    System.out.println(flightDocument.toJson());
+                    //use this to debug
+                    //System.out.println(flightDocument.toJson());
 
+                    pushDocument(flightDocument);
                 }
 
             }
@@ -213,23 +250,10 @@ public class Scraper {
         }
     }
 
-
-    private void insertDocument(String csvFile) {
+    private void pushDocument(Document doc) {
         MongoDBManager MongoClient = new MongoDBManager();
         MongoClient.openConnection();
-    }
-
-
-    public void periodicScraping() throws Exception {
-        //TODO update last year and last month based on mongo values
-
-        //TODO check if the website has new entries
-
-        //if yes update month and year
-
-        //parseDocument();
-
-
+        MongoClient.insertDocument(doc);
     }
 
     private void updateScraperState(int nextMonth, int nextYear){
@@ -245,11 +269,11 @@ public class Scraper {
 
         System.out.println("Requested URL: "+preparedUrl);
         System.out.println("Attempting download");
-        FileOutputStream download = new FileOutputStream(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip");
+        FileOutputStream download = new FileOutputStream(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedYear+"_"+requestedMonth+".zip");
         download.getChannel().transferFrom(Channels.newChannel(new URL(preparedUrl).openStream()), 0, Long.MAX_VALUE);
         download.close();
         System.out.println("Download finished");
-        System.out.println("New report added: "+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip");
+        System.out.println("New report added: "+"/scraperDownloads/"+"report_"+requestedYear+"_"+requestedMonth+".zip");
     }
 
     private static void unZip(String filePath){
@@ -306,7 +330,7 @@ public class Scraper {
         //Retrieve raw data from the web
         try {
             getZipFile();
-            unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedMonth+"_"+requestedYear+".zip");
+            unZip(System.getProperty("user.dir")+"/scraperDownloads/"+"report_"+requestedYear+"_"+requestedMonth+".zip");
         } catch (Exception e) {
             e.printStackTrace();
             System.err.format("Something went wrong during the retrieve of the file from the website");
@@ -316,7 +340,7 @@ public class Scraper {
         // remove useless files
         try {
             //removes zip file
-            cleanDownloads("report_" + requestedMonth + "_" + requestedYear + ".zip");
+            cleanDownloads("report_"+requestedYear+"_"+requestedMonth+".zip");
             //removes readme
             cleanTrash();
         } catch (Exception e){

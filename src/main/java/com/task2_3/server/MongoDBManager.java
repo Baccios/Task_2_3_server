@@ -1061,6 +1061,63 @@ public class MongoDBManager implements AutoCloseable{
         }
     }
 
+    public int retrieveLastUpdatedYear (){
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        Date oldest=null;
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("date",
+                                new Document("$dateFromString",
+                                        new Document("dateString", "$FL_DATE")))), group("", max("maxDate", "$date"))) //modificato in max
+                ).cursor();
+        ) {
+            if(!cursor.hasNext()) {
+                System.err.println("Error: something went wrong while retrieving the oldest date in the database");
+                return -1;
+            }
+            Document doc = cursor.next();
+            //modificato minDate in maxDate (?)
+            oldest = doc.getDate("maxDate");
+            if(oldest == null) {
+                System.err.println("Error: something went wrong while reading the oldest date in the database");
+                return -1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return oldest.getYear();
+    }
+
+    public int retrieveLastUpdatedMonth (){
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        Date oldest=null;
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("date",
+                                new Document("$dateFromString",
+                                        new Document("dateString", "$FL_DATE")))), group("", max("maxDate", "$date"))) //modificato in max
+                ).cursor();
+        ) {
+            if(!cursor.hasNext()) {
+                System.err.println("Error: something went wrong while retrieving the oldest date in the database");
+                return -1;
+            }
+            Document doc = cursor.next();
+            //modificato minDate in maxDate (?)
+            oldest = doc.getDate("maxDate");
+            if(oldest == null) {
+                System.err.println("Error: something went wrong while reading the oldest date in the database");
+                return -1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return oldest.getMonth();
+    }
 
 
 }
