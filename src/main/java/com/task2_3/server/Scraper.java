@@ -19,6 +19,7 @@ public class Scraper {
     private String lastUpdatedYear;
     private int lastUpdatedMonth;
     private String url ="https://www.transtats.bts.gov/DL_SelectFields.asp";
+    private MongoDBManager mongomanager;
 
     public void Scraper() {
         months[0] = null ;
@@ -35,15 +36,16 @@ public class Scraper {
         months[11] = "November";
         months[12] = "December";
 
+        mongomanager = new MongoDBManager();
+
         //TODO usare query su mongo
         //updateScraperViaMongo();
 
     }
 
     private void updateScraperViaMongo(){
-        MongoDBManager MongoDB = new MongoDBManager();
-        int yearToUse = MongoDB.retrieveLastUpdatedYear();
-        int monthToUse = MongoDB.retrieveLastUpdatedMonth();
+        int yearToUse = mongomanager.retrieveLastUpdatedYear();
+        int monthToUse = mongomanager.retrieveLastUpdatedMonth();
         updateScraperState(monthToUse,yearToUse);
     }
 
@@ -251,9 +253,7 @@ public class Scraper {
     }
 
     private void pushDocument(Document doc) {
-        MongoDBManager MongoClient = new MongoDBManager();
-        MongoClient.openConnection();
-        MongoClient.insertDocument(doc);
+        mongomanager.insertDocument(doc);
     }
 
     private void updateScraperState(int nextMonth, int nextYear){
