@@ -6,6 +6,7 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.*;
 import java.util.Calendar;
+import java.util.List;
 
 import com.opencsv.CSVReader;
 import net.lingala.zip4j.exception.ZipException;
@@ -54,7 +55,7 @@ public class Scraper {
     public void testScraper() throws Exception {
        lastUpdatedYear= "2020";
        lastUpdatedMonth = 1;
-       //periodicScraping();
+       startScraping();
        scrape();
     }
 
@@ -86,7 +87,7 @@ public class Scraper {
 
     //return true if scraping was possible, returns false if zip file wasn't available for download
 
-    public boolean periodicScraping() throws Exception {
+    public boolean startScraping() throws Exception {
 
         updateScraperViaMongo();
 
@@ -111,7 +112,7 @@ public class Scraper {
     }
 
 
-    public void startScraping() throws Exception {
+ /*   public void startScraping() throws Exception {
         //This method should be used to initialize the system, after that use the "periodicScraping" method
         int actualYear = Calendar.getInstance().get(Calendar.YEAR);
         int lastYear = Integer.parseInt(lastUpdatedYear);
@@ -127,7 +128,7 @@ public class Scraper {
             updateScraperState(lastUpdatedMonth,lastYear);
         }
 
-    }
+    } */
 
 
     private void elaborateDocument(String documentName) {
@@ -173,6 +174,8 @@ public class Scraper {
                 //write headers with quotes
                 String[] flightInfo;
                 flightInfo = csvReader.readNext();
+                int numDocs = 0;
+                List<Document> DocList = null;
 
                 while ((flightInfo = csvReader.readNext()) != null) {
 
@@ -237,10 +240,19 @@ public class Scraper {
                                     .append("ORIGIN_CITY_NAME", origin_city_name)
                                     .append("ORIGIN_STATE_NM", origin_state_nm)));
 
+                    DocList.add(flightDocument);
+                    numDocs++;
                     //use this to debug
                     //System.out.println(flightDocument.toJson());
-
-                    //pushDocument(flightDocument);
+                    if (numDocs == 1000) {
+                        pushDocuments(DocList);
+                        numDocs = 0; //when we reached 1000 docs we reset the counter
+                        DocList.clear(); //we empty the list
+                    }
+                }
+                // if the last batch was minor of 1000 we need to do a final push here
+                if (numDocs < 1000 && numDocs!=0){
+                    pushDocuments(DocList);
                 }
 
             }
@@ -252,8 +264,8 @@ public class Scraper {
         }
     }
 
-    private void pushDocument(Document doc) {
-        mongomanager.insertDocument(doc);
+    private void pushDocuments(List<Document> Docs) {
+        mongomanager.insertManyDocuments(Docs);
     }
 
     private void updateScraperState(int nextMonth, int nextYear){

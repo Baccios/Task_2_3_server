@@ -72,6 +72,13 @@ public class MongoDBManager implements AutoCloseable{
         collection.insertOne(doc);
     }
 
+    public void insertManyDocuments(List<Document>Docs){
+
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
+        collection.insertMany(Docs);
+    }
+
     public void getDocument() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
         MongoCollection<Document> collection = database.getCollection("us_flights");
