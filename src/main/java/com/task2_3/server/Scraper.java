@@ -5,7 +5,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.*;
-import java.util.Calendar;
 import java.util.List;
 
 import com.opencsv.CSVReader;
@@ -16,26 +15,11 @@ import org.bson.types.ObjectId;
 import org.bson.Document;
 
 public class Scraper {
-    private String months [];
     private String lastUpdatedYear;
     private int lastUpdatedMonth;
-    private String url ="https://www.transtats.bts.gov/DL_SelectFields.asp";
     private MongoDBManager mongomanager;
 
     public void Scraper() {
-        months[0] = null ;
-        months[1] = "January";
-        months[2] = "February";
-        months[3] = "March";
-        months[4] = "April";
-        months[5] = "May";
-        months[6] = "June";
-        months[7] = "July";
-        months[8] = "August";
-        months[9] = "September";
-        months[10] = "October";
-        months[11] = "November";
-        months[12] = "December";
 
         mongomanager = new MongoDBManager();
 
@@ -171,7 +155,7 @@ public class Scraper {
 
             try ( Reader reader = Files.newBufferedReader(Paths.get(filePathToScrape));
                   CSVReader csvReader = new CSVReader(reader);) {
-                //write headers with quotes
+                //skip headers
                 String[] flightInfo;
                 flightInfo = csvReader.readNext();
                 int numDocs = 0;
