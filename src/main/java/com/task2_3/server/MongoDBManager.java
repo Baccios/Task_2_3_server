@@ -45,9 +45,9 @@ public class MongoDBManager implements AutoCloseable{
 
 
     /**
-     * Open a connection with MongoDB server, Must be called at the beginning of the application
+     * Constructor of the class. Immediately create a connection with the database
      */
-    public void openConnection(){
+    public MongoDBManager(){
       //    mongoClient= MongoClients.create("mongodb://localhost:27017");
         mongoClient = MongoClients.create(
                     "mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
@@ -1087,7 +1087,7 @@ public class MongoDBManager implements AutoCloseable{
             //modificato minDate in maxDate (?)
             oldest = doc.getDate("maxDate");
             if(oldest == null) {
-                System.err.println("Error: something went wrong while reading the oldest date in the database");
+                System.err.println("Error: something went wrong while reading the newest date in the database");
                 return -1;
             }
         } catch (Exception e) {
@@ -1116,7 +1116,7 @@ public class MongoDBManager implements AutoCloseable{
             //modificato minDate in maxDate (?)
             oldest = doc.getDate("maxDate");
             if(oldest == null) {
-                System.err.println("Error: something went wrong while reading the oldest date in the database");
+                System.err.println("Error: something went wrong while reading the newest date in the database");
                 return -1;
             }
         } catch (Exception e) {

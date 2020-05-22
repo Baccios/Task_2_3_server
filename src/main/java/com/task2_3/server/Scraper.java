@@ -15,7 +15,7 @@ import org.bson.types.ObjectId;
 
 import org.bson.Document;
 
-public class Scraper {
+public class Scraper implements AutoCloseable{
     private String months [];
     private String lastUpdatedYear;
     private int lastUpdatedMonth;
@@ -44,6 +44,10 @@ public class Scraper {
 
     }
 
+    public void close() {
+        mongomanager.close();
+    }
+
     private void updateScraperViaMongo(){
         int yearToUse = mongomanager.retrieveLastUpdatedYear();
         int monthToUse = mongomanager.retrieveLastUpdatedMonth();
@@ -61,7 +65,7 @@ public class Scraper {
 
     //utility function in order to parse also empty strings (returns 0 in that case)
 
-    double ParseDouble(String strNumber) {
+    private double ParseDouble(String strNumber) {
         if (strNumber != null && strNumber.length() > 0) {
             try {
                 return Double.parseDouble(strNumber);
@@ -74,7 +78,7 @@ public class Scraper {
 
     //utility function in order to parse also empty strings (returns 0 in that case)
 
-    int ParseInteger(String strNumber) {
+    private int ParseInteger(String strNumber) {
         if (strNumber != null && strNumber.length() > 0) {
             try {
                 return Integer.parseInt(strNumber);
@@ -87,7 +91,7 @@ public class Scraper {
 
     //return true if scraping was possible, returns false if zip file wasn't available for download
 
-    public boolean startScraping() throws Exception {
+    public boolean startScraping() {
 
         updateScraperViaMongo();
 
@@ -95,11 +99,16 @@ public class Scraper {
         String requestedYear = lastUpdatedYear;
         String requestedMonth = Integer.toString(lastUpdatedMonth);
         String preparedUrl = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_"+requestedYear+"_"+requestedMonth+".zip";
-        URL u = new URL (preparedUrl);
-        HttpURLConnection huc =  ( HttpURLConnection )  u.openConnection ();
-        huc.setRequestMethod ("GET");  //OR  huc.setRequestMethod ("HEAD");
-        huc.connect () ;
-        int code = huc.getResponseCode() ;
+        int code = 0;
+        try {
+            URL u = new URL(preparedUrl);
+            HttpURLConnection huc = (HttpURLConnection) u.openConnection();
+            huc.setRequestMethod("GET");  //OR  huc.setRequestMethod ("HEAD");
+            huc.connect();
+            code = huc.getResponseCode();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         if (code==404){
             System.out.println("Download still not available");

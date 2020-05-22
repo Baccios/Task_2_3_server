@@ -164,7 +164,7 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             System.err.println("Error occurred during scrape request processing");
         }
 
-        //TODO: force the scraping algorithm
+        new ScraperTask().run(); //force the scraping algorithm
 
         System.out.println("Scrape request correctly committed");
     }
@@ -197,7 +197,7 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             System.err.println("Error occurred during update request processing");
         }
 
-        Neo4jDBManager neo4jmanager = new Neo4jDBManager("bolt://172.16.1.15:7687", "neo4j", "root");
+        Neo4jDBManager neo4jmanager = new Neo4jDBManager();
         neo4jmanager.update(mongomanager.getUpdatePacket());
         neo4jmanager.close();
 

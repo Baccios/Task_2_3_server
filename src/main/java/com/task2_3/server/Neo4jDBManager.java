@@ -12,9 +12,9 @@ import static org.neo4j.driver.Values.parameters;
 public class Neo4jDBManager implements AutoCloseable {
     private final Driver driver;
 
-    public Neo4jDBManager(String uri, String user, String password){
+    public Neo4jDBManager(){
         //driver initialization using user and password of the neo4jdatabase
-        driver = GraphDatabase.driver( uri, AuthTokens.basic( user, password ) );
+        driver = GraphDatabase.driver( "bolt://172.16.1.15:7687", AuthTokens.basic( "user", "userpass" ) );
 
     }
 
