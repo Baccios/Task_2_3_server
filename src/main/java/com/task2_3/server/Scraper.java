@@ -23,8 +23,7 @@ public class Scraper implements AutoCloseable{
 
         mongomanager = new MongoDBManager();
 
-        //TODO usare query su mongo
-        //updateScraperViaMongo();
+        updateScraperViaMongo();
 
     }
 
