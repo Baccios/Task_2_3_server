@@ -11,8 +11,10 @@ public class Start {
     public static Timer scrapeTimer = new Timer();
 
     public static void main (String[] args) throws Exception {
-        setTimerScraper();
-        setTimerUpdater();
+        Scraper testScraper = new Scraper();
+        testScraper.startScraping();
+        //setTimerScraper();
+        //setTimerUpdater();
         Admin_Protocol_Server myServer = new Admin_Protocol_Server(2020, "admin","ciaccio");
 
         /*
@@ -70,7 +72,7 @@ public class Start {
         date.set(Calendar.SECOND, 0);
         date.set(Calendar.MILLISECOND, 0);
         //date is now set today at midnight
-        if(lastScrapeOutcome) {
+        if(lastScrapeOutcome) { //last scrape went successfully
 
             //get last updated date from mongo database
             MongoDBManager mongomanager = new MongoDBManager();

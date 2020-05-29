@@ -68,14 +68,14 @@ public class MongoDBManager implements AutoCloseable{
     public void insertDocument(Document doc){
 
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         collection.insertOne(doc);
     }
 
     public void insertManyDocuments(List<Document>Docs){
 
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         collection.insertMany(Docs);
     }
 
@@ -1070,7 +1070,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public int retrieveLastUpdatedYear (){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         Date oldest=null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -1104,7 +1104,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public int retrieveLastUpdatedMonth (){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         Date oldest=null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(

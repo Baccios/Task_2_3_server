@@ -5,6 +5,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.opencsv.CSVReader;
@@ -76,11 +77,17 @@ public class Scraper implements AutoCloseable{
 
     public boolean startScraping() {
 
-        updateScraperViaMongo();
+        //updateScraperViaMongo();
 
         //check if zip is available
+        lastUpdatedYear = "2018";
+        lastUpdatedMonth= 1;
         String requestedYear = lastUpdatedYear;
         String requestedMonth = Integer.toString(lastUpdatedMonth);
+        if (lastUpdatedYear=="-1"){
+            requestedYear = "2018";
+            requestedMonth = "1";
+        }
         String preparedUrl = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_"+requestedYear+"_"+requestedMonth+".zip";
         int code = 0;
         try {
@@ -167,7 +174,7 @@ public class Scraper implements AutoCloseable{
                 String[] flightInfo;
                 flightInfo = csvReader.readNext();
                 int numDocs = 0;
-                List<Document> DocList = null;
+                List<Document> DocList = new ArrayList<Document>();
 
                 while ((flightInfo = csvReader.readNext()) != null) {
 
@@ -176,11 +183,11 @@ public class Scraper implements AutoCloseable{
                     op_unique_carrier = flightInfo[8];
                     crs_dep_time = ParseInteger(flightInfo[29]);
                     dep_time = ParseInteger(flightInfo[30]);
-                    dep_delay = ParseDouble(flightInfo[31].replaceAll("-", ""));
+                    dep_delay = ParseDouble(flightInfo[31]);
                     dep_del15 = ParseDouble(flightInfo[33]);
                     crs_arr_time = ParseInteger(flightInfo[40]);
                     arr_time = ParseInteger(flightInfo[41]);
-                    arr_delay = ParseDouble(flightInfo[42].replaceAll("-", ""));
+                    arr_delay = ParseDouble(flightInfo[42]);
                     arr_del15 = ParseDouble(flightInfo[44]);
                     cancelled = (int) (ParseDouble(flightInfo[47]));
                     cancellation_code = flightInfo[48];
