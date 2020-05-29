@@ -1094,7 +1094,12 @@ public class MongoDBManager implements AutoCloseable{
             e.printStackTrace();
         }
 
-        return oldest.getYear();
+        if(oldest == null) {
+            return -1;
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(oldest);
+        return cal.get(Calendar.YEAR);
     }
 
     public int retrieveLastUpdatedMonth (){
@@ -1123,7 +1128,12 @@ public class MongoDBManager implements AutoCloseable{
             e.printStackTrace();
         }
 
-        return oldest.getMonth();
+        if(oldest == null) {
+            return -1;
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(oldest);
+        return cal.get(Calendar.MONTH);
     }
 
 
