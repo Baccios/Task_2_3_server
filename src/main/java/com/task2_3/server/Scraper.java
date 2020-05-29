@@ -77,11 +77,9 @@ public class Scraper implements AutoCloseable{
 
     public boolean startScraping() {
 
-        //updateScraperViaMongo();
+        updateScraperViaMongo();
 
         //check if zip is available
-        lastUpdatedYear = "2018";
-        lastUpdatedMonth= 1;
         String requestedYear = lastUpdatedYear;
         String requestedMonth = Integer.toString(lastUpdatedMonth);
         if (lastUpdatedYear=="-1"){
