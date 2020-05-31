@@ -20,7 +20,7 @@ public class Scraper implements AutoCloseable{
     private int lastUpdatedMonth;
     private MongoDBManager mongoManager;
 
-    public void Scraper() {
+    public Scraper() {
 
         mongoManager = new MongoDBManager();
         updateScraperViaMongo();

@@ -1080,14 +1080,14 @@ public class MongoDBManager implements AutoCloseable{
                 ).cursor();
         ) {
             if(!cursor.hasNext()) {
-                System.err.println("Error: something went wrong while retrieving the oldest date in the database");
+                System.err.println("Error: something went wrong while retrieving the newest date in the database");
                 return -1;
             }
             Document doc = cursor.next();
             //modificato minDate in maxDate (?)
             oldest = doc.getDate("maxDate");
             if(oldest == null) {
-                System.err.println("Error: something went wrong while reading the newest date in the database");
+                System.err.println("Error: something went wrong while reading the newest year in the database");
                 return -1;
             }
         } catch (Exception e) {
@@ -1104,7 +1104,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public int retrieveLastUpdatedMonth (){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         Date oldest=null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -1114,14 +1114,15 @@ public class MongoDBManager implements AutoCloseable{
                 ).cursor();
         ) {
             if(!cursor.hasNext()) {
-                System.err.println("Error: something went wrong while retrieving the oldest date in the database");
+                System.err.println("Error: something went wrong while retrieving the newest date in the database");
                 return -1;
             }
             Document doc = cursor.next();
+            System.out.println(doc.toJson());
             //modificato minDate in maxDate (?)
             oldest = doc.getDate("maxDate");
             if(oldest == null) {
-                System.err.println("Error: something went wrong while reading the newest date in the database");
+                System.err.println("Error: something went wrong while reading the newest month in the database");
                 return -1;
             }
         } catch (Exception e) {
