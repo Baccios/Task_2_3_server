@@ -81,7 +81,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public void getDocument() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         //MongoCursor<Document> cursor = collection.find(eq("QUARTER" ,1)).limit(100).iterator();
         try(MongoCursor<Document> cursor = collection.find(eq("QUARTER" ,1)).limit(100).iterator()) {
             while (cursor.hasNext()) {
@@ -1104,7 +1104,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public int retrieveLastUpdatedMonth (){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         Date oldest=null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(

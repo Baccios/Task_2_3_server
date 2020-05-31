@@ -18,23 +18,23 @@ import org.bson.Document;
 public class Scraper implements AutoCloseable{
     private String lastUpdatedYear;
     private int lastUpdatedMonth;
-    private MongoDBManager mongomanager;
+    private MongoDBManager mongoManager;
 
     public void Scraper() {
 
-        mongomanager = new MongoDBManager();
-
+        mongoManager = new MongoDBManager();
         updateScraperViaMongo();
 
     }
 
     public void close() {
-        mongomanager.close();
+        mongoManager.close();
     }
 
     private void updateScraperViaMongo(){
-        int yearToUse = mongomanager.retrieveLastUpdatedYear();
-        int monthToUse = mongomanager.retrieveLastUpdatedMonth();
+        System.out.println(mongoManager);
+        int yearToUse = mongoManager.retrieveLastUpdatedYear();
+        int monthToUse = mongoManager.retrieveLastUpdatedMonth();
         updateScraperState(monthToUse,yearToUse);
     }
 
@@ -78,6 +78,8 @@ public class Scraper implements AutoCloseable{
     public boolean startScraping() {
 
         updateScraperViaMongo();
+
+        System.out.println("Anno da scaricare: "+lastUpdatedYear+", mese da scaricare: "+lastUpdatedMonth);
 
         //check if zip is available
         String requestedYear = lastUpdatedYear;
@@ -165,14 +167,13 @@ public class Scraper implements AutoCloseable{
             int origin_airport_id;
             String origin_city_name;
             String origin_state_nm;
-
+            List<Document> DocList = new ArrayList<Document>();
+            int numDocs = 0;
             try ( Reader reader = Files.newBufferedReader(Paths.get(filePathToScrape));
                   CSVReader csvReader = new CSVReader(reader);) {
                 //write headers with quotes
                 String[] flightInfo;
                 flightInfo = csvReader.readNext();
-                int numDocs = 0;
-                List<Document> DocList = new ArrayList<Document>();
 
                 while ((flightInfo = csvReader.readNext()) != null) {
 
@@ -240,8 +241,9 @@ public class Scraper implements AutoCloseable{
                     DocList.add(flightDocument);
                     numDocs++;
                     //use this to debug
-                    //System.out.println(flightDocument.toJson());
+                    System.out.println("inserito doc num: "+DocList.size());
                     if (numDocs == 1000) {
+                        System.out.println("Raggiunti mille docs - push!");
                         pushDocuments(DocList);
                         numDocs = 0; //when we reached 1000 docs we reset the counter
                         DocList.clear(); //we empty the list
@@ -249,7 +251,9 @@ public class Scraper implements AutoCloseable{
                 }
                 // if the last batch was minor of 1000 we need to do a final push here
                 if (numDocs < 1000 && numDocs!=0){
+                    System.out.println("Numero doc non divisibile per 1000, avanzati "+DocList.size()+" - push!");
                     pushDocuments(DocList);
+                    DocList.clear();
                 }
 
             }
@@ -262,7 +266,7 @@ public class Scraper implements AutoCloseable{
     }
 
     private void pushDocuments(List<Document> Docs) {
-        mongomanager.insertManyDocuments(Docs);
+        mongoManager.insertManyDocuments(Docs);
     }
 
     private void updateScraperState(int nextMonth, int nextYear){
