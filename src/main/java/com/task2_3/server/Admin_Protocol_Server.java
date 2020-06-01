@@ -204,10 +204,11 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
         System.out.println("Update request correctly committed");
     }
 
+    /*
     /**
      * Handle a replicas request and send back the acknowledgement message.
      * @param level the new level of replication in the database (values from 1 to 3)
-     */
+
     private void handleReplicas(int level) {
         System.out.println("Managing replicas request...");
 
@@ -215,10 +216,10 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             System.err.println("Error occurred during replicas request processing");
         }
 
-        //TODO: handle the request on MongoDB
 
         System.out.println("Replicas request correctly committed");
     }
+    */
 
     /**
      * Handle a limit request and send back the acknowledgement message.
@@ -312,9 +313,11 @@ public class Admin_Protocol_Server implements AutoCloseable, Runnable {
             else if(input[1].equals("year") && params.length == 1 && params[0].matches(regex)) {
                 handleYear(Integer.parseInt(params[0]));
             }
+            /*
             else if(input[1].equals("replicas") && params.length == 1 && params[0].matches(regex)) {
                 handleReplicas(Integer.parseInt(params[0]));
             }
+             */
         }
         return true;
     }
