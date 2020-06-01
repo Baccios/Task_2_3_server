@@ -30,7 +30,7 @@ public class MongoDBManager implements AutoCloseable{
 
     final private Document weightDocument =
             new Document("$trunc", new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList(
-                    "$$NOW",
+                    new Date(),
                     new Document("$dateFromString",
                             new Document("dateString", "$FL_DATE")))), 2592000000L)));
 
@@ -72,20 +72,20 @@ public class MongoDBManager implements AutoCloseable{
     public void insertDocument(Document doc){
 
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         collection.insertOne(doc);
     }
 
     public void insertManyDocuments(List<Document>Docs){
 
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         collection.insertMany(Docs);
     }
 
     public void getDocument() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         //MongoCursor<Document> cursor = collection.find(eq("QUARTER" ,1)).limit(100).iterator();
         try(MongoCursor<Document> cursor = collection.find(eq("QUARTER" ,1)).limit(100).iterator()) {
             while (cursor.hasNext()) {
@@ -165,7 +165,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void buildAirlines() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         HashMap<String, Airline> temp_airlines = new HashMap<>();
         //retrieve all airlines in the database
         try(
@@ -215,7 +215,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void buildAirports() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         HashMap<String, Airport> temp_airports = new HashMap<>();
         //retrieve all airlines in the database
         try(
@@ -247,7 +247,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void buildRoutes() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         HashMap<String, Route> temp_routes = new HashMap<>();
 
         try(
@@ -277,7 +277,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getIndexes_byAirport() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(
@@ -460,7 +460,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getMostServedRoute_byAirport(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         HashMap<String, Double> totalWeights = new HashMap<>();
         //Retrieve total weights sum by airport to normalize result values
         try(
@@ -527,7 +527,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getMostServedAirline_byAirport(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         HashMap<String, Double> totalWeights = new HashMap<>();
         //Retrieve total weights sum by airport to normalize result values
         try(
@@ -592,7 +592,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getMostServedAirports_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         HashMap<String, Double> totalWeights = new HashMap<>();
         //Retrieve total weights sum by airline to normalize result values
         try(
@@ -659,7 +659,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getIndexes_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(
@@ -710,7 +710,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getIndexes_byRoute(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         try(MongoCursor<Document> cursor = collection.aggregate(
                 Arrays.asList(
                         addFields(new Field("weight", weightDocument),
@@ -889,7 +889,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public void getAirlinesRanking_byRoute() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(
@@ -947,7 +947,7 @@ public class MongoDBManager implements AutoCloseable{
 
         //retrieving oldest date in the database
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         Date oldest = null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -998,7 +998,7 @@ public class MongoDBManager implements AutoCloseable{
 
         //retrieving oldest date in the database
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         Date oldest = null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -1046,7 +1046,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public int getStorageSize() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        Document stats = database.runCommand(new Document("collStats", "us_flights_test"));
+        Document stats = database.runCommand(new Document("collStats", "us_flights"));
         return stats.getInteger("size");
     }
 
@@ -1060,7 +1060,7 @@ public class MongoDBManager implements AutoCloseable{
             return;
         }
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
 
         try {
             collection.deleteMany(
@@ -1082,7 +1082,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public int retrieveLastUpdatedYear (){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         Date oldest=null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -1116,7 +1116,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public int retrieveLastUpdatedMonth (){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        MongoCollection<Document> collection = database.getCollection("us_flights");
         Date oldest=null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(

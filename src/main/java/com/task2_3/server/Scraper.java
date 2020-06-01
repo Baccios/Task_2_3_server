@@ -84,9 +84,9 @@ public class Scraper implements AutoCloseable{
         //check if zip is available
         String requestedYear = lastUpdatedYear;
         String requestedMonth = Integer.toString(lastUpdatedMonth);
-        if (lastUpdatedYear=="-1"){
+        if (lastUpdatedYear.equals("-1")){
             requestedYear = "2018";
-            requestedMonth = "1";
+            requestedMonth = "11";
         }
         String preparedUrl = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_"+requestedYear+"_"+requestedMonth+".zip";
         int code = 0;
