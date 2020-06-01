@@ -89,7 +89,7 @@ public class Scraper implements AutoCloseable{
 
         if (lastUpdatedYear.equals(Integer.toString(-1))){
             lastUpdatedYear = "2019";
-            lastUpdatedMonth = 11;
+            lastUpdatedMonth = 10;
         }
         else {
             if (lastUpdatedMonth == 12) {
