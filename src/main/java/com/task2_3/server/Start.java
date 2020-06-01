@@ -72,6 +72,7 @@ public class Start {
         date.set(Calendar.SECOND, 0);
         date.set(Calendar.MILLISECOND, 0);
         //date is now set today at midnight
+
         if(lastScrapeOutcome) { //last scrape went successfully
 
             //get last updated date from mongo database
