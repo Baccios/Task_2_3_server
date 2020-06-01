@@ -1,6 +1,7 @@
 package com.task2_3.server;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.ServerAddress;
 import com.mongodb.client.*;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.DeleteResult;
@@ -50,8 +51,10 @@ public class MongoDBManager implements AutoCloseable{
      */
     public MongoDBManager(){
       //    mongoClient= MongoClients.create("mongodb://localhost:27017");
+        //172.16.1.9:27020,172.16.1.24:27019,172.16.1.15:27018
         mongoClient = MongoClients.create(
-                    "mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
+                    "mongodb://172.16.1.9:27020,172.16.1.24:27019,172.16.1.15:27018/");
+                    //"mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
                     //"mongodb://172.16.1.9:27020/[defaultauthdb]]?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
     }
 
