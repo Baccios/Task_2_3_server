@@ -38,15 +38,6 @@ public class Scraper implements AutoCloseable{
         updateScraperState(monthToUse,yearToUse);
     }
 
-    /* Disables comment on the part of the code you want to test! */
-
-    public void testScraper() throws Exception {
-       lastUpdatedYear= "2020";
-       lastUpdatedMonth = 1;
-       startScraping();
-       scrape();
-    }
-
     //utility function in order to parse also empty strings (returns 0 in that case)
 
     private double ParseDouble(String strNumber) {
@@ -77,17 +68,35 @@ public class Scraper implements AutoCloseable{
 
     public boolean startScraping() {
 
-        updateScraperViaMongo();
+        System.out.println("<------- SCRAPING AVVIATO ------->");
 
-        System.out.println("Anno da scaricare: "+lastUpdatedYear+", mese da scaricare: "+lastUpdatedMonth);
+        updateScraperViaMongo();
+        System.out.println("Ultimo anno scaricato: "+lastUpdatedYear+", ultimo mese scaricato: "+lastUpdatedMonth);
 
         //check if zip is available
-        String requestedYear = lastUpdatedYear;
-        String requestedMonth = Integer.toString(lastUpdatedMonth);
-        if (lastUpdatedYear=="-1"){
-            requestedYear = "2018";
-            requestedMonth = "1";
+
+        String requestedYear;
+        String requestedMonth;
+
+        if (lastUpdatedYear.equals(Integer.toString(-1))){
+            lastUpdatedYear = "2018";
+            lastUpdatedMonth = 1;
         }
+        else {
+            if (lastUpdatedMonth == 12) {
+                lastUpdatedMonth = 1;
+                int newYear=ParseInteger(lastUpdatedYear)+1;
+                lastUpdatedYear=Integer.toString(newYear);
+            } else {
+                lastUpdatedMonth = lastUpdatedMonth + 1;
+            }
+        }
+
+        requestedYear = lastUpdatedYear;
+        requestedMonth = Integer.toString(lastUpdatedMonth);
+
+        System.out.println("Anno da scaricare: "+requestedYear+", mese da scaricare: "+requestedMonth);
+
         String preparedUrl = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_"+requestedYear+"_"+requestedMonth+".zip";
         int code = 0;
         try {
@@ -240,8 +249,10 @@ public class Scraper implements AutoCloseable{
 
                     DocList.add(flightDocument);
                     numDocs++;
+
                     //use this to debug
-                    System.out.println("inserito doc num: "+DocList.size());
+                    //System.out.println("inserito doc num: "+DocList.size());
+
                     if (numDocs == 1000) {
                         System.out.println("Raggiunti mille docs - push!");
                         pushDocuments(DocList);
@@ -257,6 +268,7 @@ public class Scraper implements AutoCloseable{
                 }
 
             }
+            System.out.println("<------- SCRAPING COMPLETATO ------->");
         }
 
         catch (IOException e) {
@@ -271,7 +283,7 @@ public class Scraper implements AutoCloseable{
 
     private void updateScraperState(int nextMonth, int nextYear){
         lastUpdatedYear = Integer.toString(nextYear);
-        lastUpdatedMonth = nextMonth;
+        lastUpdatedMonth = nextMonth+1;
     }
 
     private void getZipFile() throws Exception {
