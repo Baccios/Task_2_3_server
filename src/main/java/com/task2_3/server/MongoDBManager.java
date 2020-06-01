@@ -28,7 +28,8 @@ public class MongoDBManager implements AutoCloseable{
     private HashMap<String, Route> routes; //all routes mapped by "$ORIGIN_IATA$DESTINATION_IATA"
 
     final private Document weightDocument =
-            new Document("$trunc", new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList("$$NOW",
+            new Document("$trunc", new Document("$divide", Arrays.asList(new Document("$subtract", Arrays.asList(
+                    "$$NOW",
                     new Document("$dateFromString",
                             new Document("dateString", "$FL_DATE")))), 2592000000L)));
 
@@ -45,9 +46,9 @@ public class MongoDBManager implements AutoCloseable{
 
 
     /**
-     * Open a connection with MongoDB server, Must be called at the beginning of the application
+     * Constructor of the class. Immediately create a connection with the database
      */
-    public void openConnection(){
+    public MongoDBManager(){
       //    mongoClient= MongoClients.create("mongodb://localhost:27017");
         mongoClient = MongoClients.create(
                     "mongodb+srv://admin-user:nhJ1kdby9BqEj0ig@us-flights-cluster-doppu.mongodb.net/test");
@@ -68,13 +69,20 @@ public class MongoDBManager implements AutoCloseable{
     public void insertDocument(Document doc){
 
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         collection.insertOne(doc);
+    }
+
+    public void insertManyDocuments(List<Document>Docs){
+
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        collection.insertMany(Docs);
     }
 
     public void getDocument() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         //MongoCursor<Document> cursor = collection.find(eq("QUARTER" ,1)).limit(100).iterator();
         try(MongoCursor<Document> cursor = collection.find(eq("QUARTER" ,1)).limit(100).iterator()) {
             while (cursor.hasNext()) {
@@ -90,19 +98,25 @@ public class MongoDBManager implements AutoCloseable{
      * Put results in an UpdatePacket instance that will be used to generate Neo4j creation scripts
      */
     public UpdatePacket getUpdatePacket() {
+
+        System.out.println("The system is starting to build a new update packet");
+        System.out.println("Building airports, airlines and routes lists...");
         //initialize local data structures
         buildAirports();
         buildAirlines();
         buildRoutes();
 
+        System.out.println("Computing statistics...");
         //populate statistic fields through queries
         getIndexes_byAirline();
         getIndexes_byAirport();
         getIndexes_byRoute();
+        System.out.println("numerical indexes correctly computed");
         getMostServedRoute_byAirport();
         getMostServedAirline_byAirport();
         getAirlinesRanking_byRoute();
         getMostServedAirports_byAirline();
+        System.out.println("All rankings are correctly computed");
 
         HashMap<String, Airline> tempAirlines = airlines;
         HashMap<String, Airport> tempAirports = airports;
@@ -112,6 +126,8 @@ public class MongoDBManager implements AutoCloseable{
         airlines = null;
         airports = null;
         routes = null;
+
+        System.out.println("The update packet is ready");
 
         //return local data structures
         return new UpdatePacket(tempAirlines,tempAirports,tempRoutes);
@@ -146,7 +162,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void buildAirlines() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         HashMap<String, Airline> temp_airlines = new HashMap<>();
         //retrieve all airlines in the database
         try(
@@ -196,7 +212,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void buildAirports() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         HashMap<String, Airport> temp_airports = new HashMap<>();
         //retrieve all airlines in the database
         try(
@@ -207,7 +223,7 @@ public class MongoDBManager implements AutoCloseable{
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
                 Document id = (Document)doc.get("_id");
-                Airport current = new Airport(id.getDouble("ORIGIN_AIRPORT_ID").intValue(),
+                Airport current = new Airport(id.getInteger("ORIGIN_AIRPORT_ID"),
                                                 id.getString("ORIGIN_IATA"),
                                                 null,
                                                 id.getString("ORIGIN_CITY_NAME"),
@@ -228,7 +244,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void buildRoutes() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         HashMap<String, Route> temp_routes = new HashMap<>();
 
         try(
@@ -258,7 +274,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getIndexes_byAirport() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(
@@ -441,7 +457,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getMostServedRoute_byAirport(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         HashMap<String, Double> totalWeights = new HashMap<>();
         //Retrieve total weights sum by airport to normalize result values
         try(
@@ -508,7 +524,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getMostServedAirline_byAirport(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         HashMap<String, Double> totalWeights = new HashMap<>();
         //Retrieve total weights sum by airport to normalize result values
         try(
@@ -573,7 +589,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getMostServedAirports_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         HashMap<String, Double> totalWeights = new HashMap<>();
         //Retrieve total weights sum by airline to normalize result values
         try(
@@ -640,7 +656,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getIndexes_byAirline() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(
@@ -691,7 +707,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public void getIndexes_byRoute(){
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         try(MongoCursor<Document> cursor = collection.aggregate(
                 Arrays.asList(
                         addFields(new Field("weight", weightDocument),
@@ -870,7 +886,7 @@ public class MongoDBManager implements AutoCloseable{
 
     public void getAirlinesRanking_byRoute() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
                         Arrays.asList(
@@ -928,7 +944,7 @@ public class MongoDBManager implements AutoCloseable{
 
         //retrieving oldest date in the database
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         Date oldest = null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -979,7 +995,7 @@ public class MongoDBManager implements AutoCloseable{
 
         //retrieving oldest date in the database
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
         Date oldest = null;
         try (
                 MongoCursor<Document> cursor = collection.aggregate(
@@ -1027,7 +1043,7 @@ public class MongoDBManager implements AutoCloseable{
      */
     public int getStorageSize() {
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        Document stats = database.runCommand(new Document("collStats", "us_flights"));
+        Document stats = database.runCommand(new Document("collStats", "us_flights_test"));
         return stats.getInteger("size");
     }
 
@@ -1041,7 +1057,7 @@ public class MongoDBManager implements AutoCloseable{
             return;
         }
         MongoDatabase database = mongoClient.getDatabase("us_flights_db");
-        MongoCollection<Document> collection = database.getCollection("us_flights");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
 
         try {
             collection.deleteMany(
@@ -1061,6 +1077,74 @@ public class MongoDBManager implements AutoCloseable{
         }
     }
 
+    public int retrieveLastUpdatedYear (){
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        Date oldest=null;
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("date",
+                                new Document("$dateFromString",
+                                        new Document("dateString", "$FL_DATE")))), group("", max("maxDate", "$date"))) //modificato in max
+                ).cursor();
+        ) {
+            if(!cursor.hasNext()) {
+                System.err.println("Error: something went wrong while retrieving the newest date in the database");
+                return -1;
+            }
+            Document doc = cursor.next();
+            //modificato minDate in maxDate (?)
+            oldest = doc.getDate("maxDate");
+            if(oldest == null) {
+                System.err.println("Error: something went wrong while reading the newest year in the database");
+                return -1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if(oldest == null) {
+            return -1;
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(oldest);
+        return cal.get(Calendar.YEAR);
+    }
+
+    public int retrieveLastUpdatedMonth (){
+        MongoDatabase database = mongoClient.getDatabase("us_flights_db");
+        MongoCollection<Document> collection = database.getCollection("us_flights_test");
+        Date oldest=null;
+        try (
+                MongoCursor<Document> cursor = collection.aggregate(
+                        Arrays.asList(addFields(new Field("date",
+                                new Document("$dateFromString",
+                                        new Document("dateString", "$FL_DATE")))), group("", max("maxDate", "$date"))) //modificato in max
+                ).cursor();
+        ) {
+            if(!cursor.hasNext()) {
+                System.err.println("Error: something went wrong while retrieving the newest date in the database");
+                return -1;
+            }
+            Document doc = cursor.next();
+            System.out.println(doc.toJson());
+            //modificato minDate in maxDate (?)
+            oldest = doc.getDate("maxDate");
+            if(oldest == null) {
+                System.err.println("Error: something went wrong while reading the newest month in the database");
+                return -1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if(oldest == null) {
+            return -1;
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(oldest);
+        return cal.get(Calendar.MONTH);
+    }
 
 
 }
