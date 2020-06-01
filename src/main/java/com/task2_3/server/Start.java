@@ -11,30 +11,9 @@ public class Start {
     public static Timer scrapeTimer = new Timer();
 
     public static void main (String[] args) throws Exception {
-        Scraper testScraper = new Scraper();
-        testScraper.startScraping();
-        //setTimerScraper();
-        //setTimerUpdater();
+        setTimerScraper();
+        setTimerUpdater();
         Admin_Protocol_Server myServer = new Admin_Protocol_Server(2020, "admin","ciaccio");
-
-        /*
-        Neo4jDBManager neomanager = new Neo4jDBManager("bolt://172.16.1.15:7687", "neo4j", "root");
-        MongoDBManager mongomanager = new MongoDBManager();
-
-        PasswordManager pswman = new PasswordManager();
-        pswman.setCredentials("admin", "admin");
-        System.out.println(pswman.authenticate("admin", "admin"));
-        System.out.println(pswman.authenticate("admin", "arribaia"));
-
-        //neomanager.update(mongomanager.getUpdatePacket());
-        mongomanager.close();
-        neomanager.close();
-
-        /*
-        System.out.println("Connection opened!");
-        updater=new Updater(mongomanager,neomanager);
-        setTimer(updater);
-         */
     }
     //Following method allows running the updater everyday at midnight
     public static void setTimerUpdater(){
